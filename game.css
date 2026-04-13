@@ -1,11 +1,58 @@
 html {
+  background: #020617;
   overscroll-behavior: none;
+  touch-action: none;
 }
 
 body {
+  display: grid;
+  place-items: center;
   margin: 0;
+  background: radial-gradient(circle at top, #1e293b, #020617 60%), #020617;
+  min-height: 100dvh;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.game_shell {
+  position: relative;
+  container-type: inline-size;
+  aspect-ratio: 16 / 9;
+  width: min(100vw, calc(100dvh * 16 / 9));
+  touch-action: none;
+}
+
+.game_menu {
+  display: flex;
+  position: absolute;
+  top: 2cqw;
+  right: 2cqw;
+  gap: 1cqw;
+  touch-action: manipulation;
+}
+
+.game_menu button {
+  appearance: none;
+  box-shadow: 0 0.6cqw 1.6cqw rgb(2 6 23 / 35%);
+  border: 0.35cqw solid #e2e8f0;
+  border-radius: 1.4cqw;
+  background: rgb(15 23 42 / 78%);
+  padding: 0.9cqw 1.6cqw;
+  touch-action: manipulation;
+  color: #e2e8f0;
+  font:
+    700 2.4cqw/1.1 ui-sans-serif,
+    system-ui,
+    sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 canvas {
   display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
 }

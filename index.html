@@ -2,13 +2,27 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#020617" />
     <title>GameDevJS 2026 Side Scroller</title>
+    <link rel="manifest" href="./site.webmanifest" />
     <link rel="stylesheet" href="./game.css" />
   </head>
   <body>
-    <canvas id="game"></canvas>
+    <main class="game_shell">
+      <canvas id="game_canvas"></canvas>
+      <div class="game_menu">
+        <button id="restart_button" type="button">Restart</button>
+      </div>
+    </main>
     <script src="./zzfx.js"></script>
-    <script type="module" src="./main.js"></script>
+    <script type="module">
+      import init from "./game-init.js"
+
+      init(game_canvas.getContext("2d"))
+    </script>
   </body>
 </html>
