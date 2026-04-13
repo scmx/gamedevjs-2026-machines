@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "strict": true,
+    "target": "ESNext", // Latest major browser support
+    // "module": "ESNext", // Use Node16 module syntax
+    // "moduleResolution": "NodeNext",
+    "noImplicitAny": true, // Disallow implicit 'any' types
+    "noUnusedLocals": true, // Error on unused local variables
+    "noUnusedParameters": true, // Error on unused function parameters
+    "noUncheckedIndexedAccess": true, // Ensure array accesses are checked,
+    "allowUnusedLabels": false, // Error on unused labels
+    "noPropertyAccessFromIndexSignature": true, // Prevent property access on index signatures
+    "noImplicitReturns": true, // Ensure all code paths in a function return a value
+    "noImplicitThis": true, // Ensure 'this' is typed correctly
+    "noImplicitOverride": true, // Ensure method overrides are explicitly marked
+    "noFallthroughCasesInSwitch": true, // Prevent fallthrough errors in switch statements
+    "exactOptionalPropertyTypes": true, // Ensure optional properties are exactly typed
+    "allowSyntheticDefaultImports": true, // For compatibility with some module systems
+    "allowUnreachableCode": false, // Error on unreachable code
+    "noUncheckedSideEffectImports": true, // Prevent imports with side effects that are not checked
+    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+  },
+  "include": ["*.js", "*.d.ts"],
+  "exclude": ["eslint.config.js", "node_modules", "zzfx.js"]
+}

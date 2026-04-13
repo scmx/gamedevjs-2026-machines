@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "lint": "tsc -p jsconfig.json && eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^20.19.39",
+    "eslint": "^9.39.1",
+    "prettier": "^3.8.1",
+    "prettier-plugin-css-order": "^2.2.0",
+    "typescript": "^5.9.3"
+  },
+  "prettier": {
+    "semi": false,
+    "plugins": [
+      "prettier-plugin-css-order"
+    ],
+    "cssDeclarationSorterKeepOverrides": false
+  }
+}
