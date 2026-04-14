@@ -13,6 +13,7 @@ export function update(model, inputs, deltaTime) {
     updatePlayer(player, model, input, deltaTime)
   }
 
+  resolveLocks(model)
   collectPickups(model)
   constrainPlayerSpacing(model)
 }
@@ -103,7 +104,7 @@ function collectPickups(model) {
   if (!level) return
 
   for (const object of level.objects) {
-    if (object.collected) continue
+    if (object.collected || object.kind === "lock") continue
 
     for (const player of model.players) {
       if (!isOverlapping(player, object)) continue
@@ -138,6 +139,51 @@ function isOverlapping(player, object) {
     player.pos.y < objectY + objectHeight &&
     player.pos.y + player.size.y > objectY
   )
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
+function resolveLocks(model) {
+  const level = model.levels[0]
+  if (!level) return
+
+  for (const object of level.objects) {
+    if (object.kind !== "lock" || object.collected) continue
+
+    for (const player of model.players) {
+      if (!isOverlapping(player, object)) continue
+
+      const keyColor = object.sprite?.replace("lock_", "")
+      if (keyColor && player.keys[keyColor]) {
+        player.keys[keyColor] = false
+        object.collected = true
+        continue
+      }
+
+      resolveSolidOverlap(player, object)
+    }
+  }
+}
+
+/**
+ * @param {GameActorData} player
+ * @param {GameLevelObject} object
+ */
+function resolveSolidOverlap(player, object) {
+  const objectX = object.x * TILE_SIZE
+  const objectWidth = object.width * TILE_SIZE
+
+  if (player.oldPos.x + player.size.x <= objectX) {
+    player.pos.x = objectX - player.size.x
+    if (player.velocity.x > 0) player.velocity.x = 0
+    return
+  }
+
+  if (player.oldPos.x >= objectX + objectWidth) {
+    player.pos.x = objectX + objectWidth
+    if (player.velocity.x < 0) player.velocity.x = 0
+  }
 }
 
 /**

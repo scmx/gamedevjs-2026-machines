@@ -12,6 +12,7 @@ export function generateLevel() {
   const objects = [
     ...buildGemObjects(terrain, occupiedTiles),
     ...buildKeyObjects(terrain, occupiedTiles),
+    ...buildLockObjects(terrain, occupiedTiles),
   ]
 
   return {
@@ -130,6 +131,47 @@ function buildKeyObjects(terrainRows, occupiedTiles) {
       width: 1,
       height: 1,
       sprite: `key_${color}`,
+      collected: false,
+    })
+    occupiedTiles.add(`${x},${y}`)
+  }
+
+  return objects
+}
+
+/**
+ * @param {string[]} terrainRows
+ * @param {Set<string>} occupiedTiles
+ * @returns {GameLevelObject[]}
+ */
+function buildLockObjects(terrainRows, occupiedTiles) {
+  const keyColors = ["blue", "green", "red", "yellow"]
+  /** @type {GameLevelObject[]} */
+  const objects = []
+
+  for (let index = 0; index < keyColors.length; index++) {
+    const color = keyColors[index]
+    if (!color) continue
+    let x = 13 + index * 10
+    let surfaceY = getSurfaceY(terrainRows, x)
+    let y = Math.max(1, surfaceY - 1)
+
+    while (x < LEVEL_WIDTH - 1 && occupiedTiles.has(`${x},${y}`)) {
+      x += 1
+      surfaceY = getSurfaceY(terrainRows, x)
+      y = Math.max(1, surfaceY - 1)
+    }
+
+    if (occupiedTiles.has(`${x},${y}`)) continue
+
+    objects.push({
+      kind: "lock",
+      x,
+      y,
+      width: 1,
+      height: 1,
+      solid: true,
+      sprite: `lock_${color}`,
       collected: false,
     })
     occupiedTiles.add(`${x},${y}`)

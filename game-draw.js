@@ -34,6 +34,13 @@ const keyImages = {
   key_yellow: loadTileImage("key_yellow"),
 }
 /** @type {Record<string, HTMLImageElement>} */
+const lockImages = {
+  lock_blue: loadTileImage("lock_blue"),
+  lock_green: loadTileImage("lock_green"),
+  lock_red: loadTileImage("lock_red"),
+  lock_yellow: loadTileImage("lock_yellow"),
+}
+/** @type {Record<string, HTMLImageElement>} */
 const hudKeyImages = {
   blue: loadTileImage("hud_key_blue"),
   green: loadTileImage("hud_key_green"),
@@ -322,19 +329,24 @@ function drawObjects(model, view, offsetX, offsetY) {
   const drawSize = 26 * view.scale
   const fallbackGemImage = gemImages["gem_blue"]
   const fallbackKeyImage = keyImages["key_blue"]
+  const fallbackLockImage = lockImages["lock_blue"]
   const bounceDistance = 6 * view.scale
 
   for (const object of level.objects) {
     if (object.collected) continue
 
     const image =
-      object.kind === "key"
-        ? (keyImages[object.sprite ?? "key_blue"] ?? fallbackKeyImage)
-        : (gemImages[object.sprite ?? "gem_blue"] ?? fallbackGemImage)
+      object.kind === "lock"
+        ? (lockImages[object.sprite ?? "lock_blue"] ?? fallbackLockImage)
+        : object.kind === "key"
+          ? (keyImages[object.sprite ?? "key_blue"] ?? fallbackKeyImage)
+          : (gemImages[object.sprite ?? "gem_blue"] ?? fallbackGemImage)
     const objectX = offsetX + object.x * TILE_SIZE * view.scale
     const objectY = offsetY + object.y * TILE_SIZE * view.scale
     const bounceOffset =
-      Math.sin(model.elapsed * 3 + object.x * 0.8) * bounceDistance
+      object.kind === "lock"
+        ? 0
+        : Math.sin(model.elapsed * 3 + object.x * 0.8) * bounceDistance
     const drawX =
       objectX + (object.width * TILE_SIZE * view.scale - drawSize) / 2
     const drawY =
@@ -353,7 +365,12 @@ function drawObjects(model, view, offsetX, offsetY) {
       continue
     }
 
-    ctx.fillStyle = object.kind === "key" ? "#facc15" : "#38bdf8"
+    ctx.fillStyle =
+      object.kind === "lock"
+        ? "#f59e0b"
+        : object.kind === "key"
+          ? "#facc15"
+          : "#38bdf8"
     ctx.beginPath()
     ctx.arc(
       drawX + drawSize / 2,
