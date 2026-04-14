@@ -8,6 +8,7 @@ const LEVEL_HEIGHT = 12
 export function generateLevel() {
   const seed = createSeed()
   const terrain = buildTerrainRows(seed)
+  const objects = buildGemObjects(terrain)
 
   return {
     id: `generated-${seed}`,
@@ -17,7 +18,7 @@ export function generateLevel() {
     layers: {
       terrain,
     },
-    objects: [],
+    objects,
     generatedFrom: {
       version: LEVEL_VERSION,
       seed,
@@ -61,6 +62,57 @@ function buildTerrainRows(seed) {
   }
 
   return rows
+}
+
+/**
+ * @param {string[]} terrainRows
+ * @returns {GameLevelObject[]}
+ */
+function buildGemObjects(terrainRows) {
+  /** @type {GameLevelObject[]} */
+  const objects = []
+
+  for (let x = 3; x < LEVEL_WIDTH - 3; x += 5) {
+    const surfaceY = getSurfaceY(terrainRows, x)
+    if (surfaceY <= 1) continue
+
+    objects.push({
+      kind: "gem",
+      x,
+      y: surfaceY - 1,
+      width: 1,
+      height: 1,
+      sprite: getGemSprite(objects.length),
+      collected: false,
+    })
+  }
+
+  return objects
+}
+
+/**
+ * @param {string[]} terrainRows
+ * @param {number} tileX
+ * @returns {number}
+ */
+function getSurfaceY(terrainRows, tileX) {
+  for (let y = 0; y < terrainRows.length; y++) {
+    const row = terrainRows[y]
+    if (row?.[tileX] === "1") {
+      return y
+    }
+  }
+
+  return LEVEL_HEIGHT
+}
+
+/**
+ * @param {number} index
+ * @returns {string}
+ */
+function getGemSprite(index) {
+  const sprites = ["gem_blue", "gem_green", "gem_red", "gem_yellow"]
+  return sprites[index % sprites.length] ?? "gem_blue"
 }
 
 /**

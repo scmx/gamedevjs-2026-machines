@@ -1,4 +1,4 @@
-import { cyclePlayerSkin } from "./game-state.js"
+import { TILE_SIZE, cyclePlayerSkin } from "./game-state.js"
 
 /**
  * @param {import('./game-state.js').GameModel} model
@@ -13,6 +13,7 @@ export function update(model, inputs, deltaTime) {
     updatePlayer(player, model, input, deltaTime)
   }
 
+  collectPickups(model)
   constrainPlayerSpacing(model)
 }
 
@@ -92,6 +93,44 @@ function getFloorY(model, player) {
   }
 
   return model.world.height - player.size.y
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
+function collectPickups(model) {
+  const level = model.levels[0]
+  if (!level) return
+
+  for (const object of level.objects) {
+    if (object.kind !== "gem" || object.collected) continue
+
+    for (const player of model.players) {
+      if (!isOverlapping(player, object)) continue
+      object.collected = true
+      player.gems += 1
+      break
+    }
+  }
+}
+
+/**
+ * @param {GameActorData} player
+ * @param {GameLevelObject} object
+ * @returns {boolean}
+ */
+function isOverlapping(player, object) {
+  const objectX = object.x * TILE_SIZE
+  const objectY = object.y * TILE_SIZE
+  const objectWidth = object.width * TILE_SIZE
+  const objectHeight = object.height * TILE_SIZE
+
+  return (
+    player.pos.x < objectX + objectWidth &&
+    player.pos.x + player.size.x > objectX &&
+    player.pos.y < objectY + objectHeight &&
+    player.pos.y + player.size.y > objectY
+  )
 }
 
 /**

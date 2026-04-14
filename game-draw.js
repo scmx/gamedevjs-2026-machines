@@ -19,6 +19,15 @@ const grassTopLeftImage = loadTileImage("terrain_grass_block_top_left")
 const grassTopRightImage = loadTileImage("terrain_grass_block_top_right")
 const grassVerticalTopImage = loadTileImage("terrain_grass_vertical_top")
 const terrainBlockImage = loadTileImage("terrain_grass_block_center")
+/** @type {Record<string, HTMLImageElement>} */
+const gemImages = {
+  gem_blue: loadTileImage("gem_blue"),
+  gem_green: loadTileImage("gem_green"),
+  gem_red: loadTileImage("gem_red"),
+  gem_yellow: loadTileImage("gem_yellow"),
+}
+const hudHeartImage = loadTileImage("hud_heart")
+const hudHeartEmptyImage = loadTileImage("hud_heart_empty")
 /** @type {Record<string, {
  *   idle: HTMLImageElement
  *   jump: HTMLImageElement
@@ -94,12 +103,15 @@ export function draw(model, view) {
   // ctx.fillRect(offsetX, offsetY, worldWidth, worldHeight)
 
   drawGround(model, view, offsetX, offsetY, worldWidth, worldHeight)
+  drawObjects(model, view, offsetX, offsetY)
 
   for (const player of model.players) {
     const playerX = lerp(player.oldPos.x, player.pos.x, model.frameTime)
     const playerY = lerp(player.oldPos.y, player.pos.y, model.frameTime)
     drawPlayer(player, model, view, offsetX, offsetY, playerX, playerY)
   }
+
+  drawHud(model, view, width, height)
 }
 
 /**
@@ -170,56 +182,6 @@ function updateCamera(model, view, width, height) {
 
   model.camera.x = lerp(model.camera.x, desiredCameraX, 0.12)
   model.camera.y = lerp(model.camera.y, desiredCameraY, 0.12)
-}
-
-/**
- * @param {CanvasRenderingContext2D} ctx
- * @param {HTMLImageElement} image
- * @param {CanvasRenderingContext2D} ctx
- * @param {HTMLImageElement} image
- * @param {{
- *   x: number
- *   y: number
- *   width: number
- *   height: number
- *   tileWidth: number
- *   scrollX: number
- *   alpha: number
- * }} region
- */
-function drawTiledRegion(ctx, image, region) {
-  if (!image.complete) return
-
-  const { x, y, width, height, tileWidth, scrollX, alpha } = region
-  const tileHeight = tileWidth / (image.width / image.height)
-  const wrappedOffset = ((scrollX % tileWidth) + tileWidth) % tileWidth
-
-  ctx.save()
-  ctx.globalAlpha = alpha
-  ctx.beginPath()
-  ctx.rect(x, y, width, height)
-  ctx.clip()
-
-  for (
-    let tileY = y - tileHeight;
-    tileY < y + height + tileHeight;
-    tileY += tileHeight
-  ) {
-    for (
-      let tileX = x - wrappedOffset - tileWidth;
-      tileX < x + width + tileWidth;
-      tileX += tileWidth
-    ) {
-      ctx.drawImage(
-        image,
-        Math.round(tileX),
-        Math.round(tileY),
-        Math.round(tileWidth),
-        Math.round(tileHeight),
-      )
-    }
-  }
-  ctx.restore()
 }
 
 /**
@@ -333,6 +295,55 @@ function drawGround(model, view, offsetX, offsetY, worldWidth, worldHeight) {
 }
 
 /**
+ * @param {import('./game-state.js').GameModel} model
+ * @param {import('./game-state.js').GameView} view
+ * @param {number} offsetX
+ * @param {number} offsetY
+ */
+function drawObjects(model, view, offsetX, offsetY) {
+  const level = model.levels[0]
+  if (!level) return
+
+  const ctx = view.ctx
+  const drawSize = 26 * view.scale
+  const fallbackGemImage = gemImages["gem_blue"]
+
+  for (const object of level.objects) {
+    if (object.kind !== "gem" || object.collected) continue
+
+    const image = gemImages[object.sprite ?? "gem_blue"] ?? fallbackGemImage
+    const objectX = offsetX + object.x * TILE_SIZE * view.scale
+    const objectY = offsetY + object.y * TILE_SIZE * view.scale
+    const drawX =
+      objectX + (object.width * TILE_SIZE * view.scale - drawSize) / 2
+    const drawY =
+      objectY + (object.height * TILE_SIZE * view.scale - drawSize) / 2
+
+    if (image?.complete) {
+      ctx.drawImage(
+        image,
+        Math.round(drawX),
+        Math.round(drawY),
+        drawSize,
+        drawSize,
+      )
+      continue
+    }
+
+    ctx.fillStyle = "#38bdf8"
+    ctx.beginPath()
+    ctx.arc(
+      drawX + drawSize / 2,
+      drawY + drawSize / 2,
+      drawSize / 3,
+      0,
+      Math.PI * 2,
+    )
+    ctx.fill()
+  }
+}
+
+/**
  * @param {GameActorData} player
  * @param {import('./game-state.js').GameModel} model
  * @param {import('./game-state.js').GameView} view
@@ -415,6 +426,85 @@ function drawPlayerLabel(player, view, offsetX, offsetY, playerX, playerY) {
   ctx.strokeText(`P${player.index + 1}`, centerX, labelY)
   ctx.fillText(`P${player.index + 1}`, centerX, labelY)
   ctx.restore()
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ * @param {import('./game-state.js').GameView} view
+ * @param {number} width
+ * @param {number} height
+ */
+function drawHud(model, view, width, height) {
+  const ctx = view.ctx
+  const panelWidth = Math.min(190, width / Math.max(1, model.players.length))
+  const panelHeight = 54
+  const margin = 12
+
+  for (const player of model.players) {
+    const panelX = margin + player.index * (panelWidth + margin)
+    const panelY = height - panelHeight - margin
+
+    ctx.save()
+    ctx.fillStyle = "rgba(2, 6, 23, 0.72)"
+    ctx.fillRect(panelX, panelY, panelWidth, panelHeight)
+    ctx.strokeStyle = getPlayerLabelColor(player)
+    ctx.lineWidth = 2
+    ctx.strokeRect(panelX, panelY, panelWidth, panelHeight)
+
+    ctx.fillStyle = "#e2e8f0"
+    ctx.font = "12px monospace"
+    ctx.textBaseline = "top"
+    ctx.fillText(`P${player.index + 1}`, panelX + 10, panelY + 8)
+
+    drawHudHearts(ctx, player, panelX + 10, panelY + 24)
+    drawHudGems(ctx, player, panelX + 110, panelY + 22)
+    ctx.restore()
+  }
+}
+
+/**
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {GameActorData} player
+ * @param {number} x
+ * @param {number} y
+ */
+function drawHudHearts(ctx, player, x, y) {
+  const size = 16
+
+  for (let i = 0; i < player.maxHearts; i++) {
+    const image = i < player.hearts ? hudHeartImage : hudHeartEmptyImage
+    const drawX = x + i * (size + 4)
+    if (image.complete) {
+      ctx.drawImage(image, drawX, y, size, size)
+      continue
+    }
+
+    ctx.fillStyle = i < player.hearts ? "#ef4444" : "#475569"
+    ctx.fillRect(drawX, y, size, size)
+  }
+}
+
+/**
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {GameActorData} player
+ * @param {number} x
+ * @param {number} y
+ */
+function drawHudGems(ctx, player, x, y) {
+  const size = 16
+  const hudGemImage = gemImages["gem_blue"]
+
+  if (hudGemImage?.complete) {
+    ctx.drawImage(hudGemImage, x, y, size, size)
+  } else {
+    ctx.fillStyle = "#38bdf8"
+    ctx.fillRect(x, y, size, size)
+  }
+
+  ctx.fillStyle = "#f8fafc"
+  ctx.font = "12px monospace"
+  ctx.textBaseline = "middle"
+  ctx.fillText(`${player.gems}`, x + size + 8, y + size / 2)
 }
 
 /**

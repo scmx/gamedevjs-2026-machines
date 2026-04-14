@@ -39,6 +39,8 @@ type GameLevelObject = {
   width: number
   height: number
   solid?: boolean
+  sprite?: string
+  collected?: boolean
 }
 
 type GameLevel = {
@@ -64,6 +66,9 @@ type GameActorData = {
   skin: string
   grounded: boolean
   cycleSkinPressed: boolean
+  hearts: number
+  maxHearts: number
+  gems: number
 }
 
 interface Window {

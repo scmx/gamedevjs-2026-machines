@@ -45,6 +45,12 @@ export class GameActor {
     /** @type {boolean} */
     this.cycleSkinPressed = false
     /** @type {number} */
+    this.hearts = 3
+    /** @type {number} */
+    this.maxHearts = 3
+    /** @type {number} */
+    this.gems = 0
+    /** @type {number} */
     this.index = 0
   }
 }
