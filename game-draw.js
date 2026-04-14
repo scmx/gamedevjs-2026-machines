@@ -41,6 +41,13 @@ const lockImages = {
   lock_yellow: loadTileImage("lock_yellow"),
 }
 /** @type {Record<string, HTMLImageElement>} */
+const lockWallImages = {
+  blue: loadTileImage("block_blue"),
+  green: loadTileImage("block_green"),
+  red: loadTileImage("block_red"),
+  yellow: loadTileImage("block_yellow"),
+}
+/** @type {Record<string, HTMLImageElement>} */
 const hudKeyImages = {
   blue: loadTileImage("hud_key_blue"),
   green: loadTileImage("hud_key_green"),
@@ -326,7 +333,8 @@ function drawObjects(model, view, offsetX, offsetY) {
   if (!level) return
 
   const ctx = view.ctx
-  const drawSize = 26 * view.scale
+  const tileSize = TILE_SIZE * view.scale
+  const tileSpan = Math.ceil(tileSize) + 1
   const fallbackGemImage = gemImages["gem_blue"]
   const fallbackKeyImage = keyImages["key_blue"]
   const fallbackLockImage = lockImages["lock_blue"]
@@ -341,26 +349,42 @@ function drawObjects(model, view, offsetX, offsetY) {
         : object.kind === "key"
           ? (keyImages[object.sprite ?? "key_blue"] ?? fallbackKeyImage)
           : (gemImages[object.sprite ?? "gem_blue"] ?? fallbackGemImage)
+    const spriteColor = object.sprite?.split("_")[1] ?? "blue"
     const objectX = offsetX + object.x * TILE_SIZE * view.scale
     const objectY = offsetY + object.y * TILE_SIZE * view.scale
     const bounceOffset =
       object.kind === "lock"
         ? 0
         : Math.sin(model.elapsed * 3 + object.x * 0.8) * bounceDistance
-    const drawX =
-      objectX + (object.width * TILE_SIZE * view.scale - drawSize) / 2
+    const drawX = objectX + (object.width * tileSize - tileSize) / 2
     const drawY =
-      objectY +
-      (object.height * TILE_SIZE * view.scale - drawSize) / 2 -
-      bounceOffset
+      object.kind === "lock"
+        ? objectY - bounceOffset
+        : objectY + (object.height * tileSize - tileSize) / 2 - bounceOffset
 
     if (image?.complete) {
+      if (object.kind === "lock") {
+        const wallImage = lockWallImages[spriteColor] ?? lockWallImages["blue"]
+        if (wallImage?.complete) {
+          for (let i = 1; i <= 2; i++) {
+            const wallY = objectY - i * tileSize
+            ctx.drawImage(
+              wallImage,
+              Math.round(objectX),
+              Math.round(wallY),
+              tileSpan,
+              tileSpan,
+            )
+          }
+        }
+      }
+
       ctx.drawImage(
         image,
         Math.round(drawX),
         Math.round(drawY),
-        drawSize,
-        drawSize,
+        tileSpan,
+        tileSpan,
       )
       continue
     }
@@ -373,9 +397,9 @@ function drawObjects(model, view, offsetX, offsetY) {
           : "#38bdf8"
     ctx.beginPath()
     ctx.arc(
-      drawX + drawSize / 2,
-      drawY + drawSize / 2,
-      drawSize / 3,
+      drawX + tileSize / 2,
+      drawY + tileSize / 2,
+      tileSize / 3,
       0,
       Math.PI * 2,
     )

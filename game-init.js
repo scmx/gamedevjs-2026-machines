@@ -7,7 +7,7 @@ import { generateLevel } from "./editor-terrain.js"
 /** @param {CanvasRenderingContext2D} ctx */
 export default function init(ctx) {
   addEventListener("load", () => {
-    const level = generateLevel()
+    const level = generateLevel(357762530)
     const model = createGameModel({ levels: [level] })
     const view = createGameView(ctx)
     const keyboard = createKeyboard()

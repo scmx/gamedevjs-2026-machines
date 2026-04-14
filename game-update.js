@@ -44,14 +44,7 @@ export function updatePlayer(player, model, input, deltaTime) {
   player.pos.x += player.velocity.x * deltaTime
   player.pos.y += player.velocity.y * deltaTime
 
-  const floorY = getFloorY(model, player)
-  player.pos.x = clamp(player.pos.x, 0, model.world.width - player.size.x)
-  player.pos.y = clamp(player.pos.y, 0, floorY)
-  player.grounded = false
-  if (player.pos.y >= floorY) {
-    player.velocity.y = 0
-    player.grounded = true
-  }
+  resolveTerrainCollisions(model, player)
 }
 
 const EMPTY_INPUT = Object.freeze({
@@ -74,26 +67,112 @@ export function clamp(value, min, max) {
 /**
  * @param {import('./game-state.js').GameModel} model
  * @param {GameActorData} player
- * @returns {number}
  */
-function getFloorY(model, player) {
+function resolveTerrainCollisions(model, player) {
   const level = model.levels[0]
   if (!level?.layers.terrain.length) {
-    return model.world.height - 96 - player.size.y
+    player.pos.x = clamp(player.pos.x, 0, model.world.width - player.size.x)
+    const floorY = model.world.height - 96 - player.size.y
+    player.pos.y = clamp(player.pos.y, 0, floorY)
+    player.grounded = player.pos.y >= floorY
+    if (player.grounded) player.velocity.y = 0
+    return
   }
 
-  const terrainRows = level.layers.terrain
   const tileSize = model.world.width / level.width
-  const centerX = player.pos.x + player.size.x / 2
-  const tileX = clamp(Math.floor(centerX / tileSize), 0, level.width - 1)
+  const terrainRows = level.layers.terrain
+  const minTileX = clamp(
+    Math.floor(player.pos.x / tileSize) - 1,
+    0,
+    level.width - 1,
+  )
+  const maxTileX = clamp(
+    Math.floor((player.pos.x + player.size.x) / tileSize) + 1,
+    0,
+    level.width - 1,
+  )
+  const minTileY = clamp(
+    Math.floor(player.pos.y / tileSize) - 1,
+    0,
+    terrainRows.length - 1,
+  )
+  const maxTileY = clamp(
+    Math.floor((player.pos.y + player.size.y) / tileSize) + 1,
+    0,
+    terrainRows.length - 1,
+  )
 
-  for (let tileY = 0; tileY < terrainRows.length; tileY++) {
+  player.grounded = false
+
+  for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
     const row = terrainRows[tileY]
-    if (!row || row[tileX] !== "1") continue
-    return tileY * tileSize - player.size.y
+    if (!row) continue
+
+    for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
+      if (row[tileX] !== "1") continue
+
+      const tileLeft = tileX * tileSize
+      const tileRight = tileLeft + tileSize
+      const tileTop = tileY * tileSize
+      const tileBottom = tileTop + tileSize
+
+      if (!isOverlappingRect(player, tileLeft, tileTop, tileSize, tileSize))
+        continue
+
+      const overlapLeft = player.pos.x + player.size.x - tileLeft
+      const overlapRight = tileRight - player.pos.x
+      const overlapTop = player.pos.y + player.size.y - tileTop
+      const overlapBottom = tileBottom - player.pos.y
+      const minOverlap = Math.min(
+        overlapLeft,
+        overlapRight,
+        overlapTop,
+        overlapBottom,
+      )
+
+      if (minOverlap === overlapTop) {
+        player.pos.y = tileTop - player.size.y
+        if (player.velocity.y > 0) player.velocity.y = 0
+        player.grounded = true
+        continue
+      }
+
+      if (minOverlap === overlapBottom) {
+        player.pos.y = tileBottom
+        if (player.velocity.y < 0) player.velocity.y = 0
+        continue
+      }
+
+      if (minOverlap === overlapLeft) {
+        player.pos.x = tileLeft - player.size.x
+        if (player.velocity.x > 0) player.velocity.x = 0
+        continue
+      }
+
+      player.pos.x = tileRight
+      if (player.velocity.x < 0) player.velocity.x = 0
+    }
   }
 
-  return model.world.height - player.size.y
+  player.pos.x = clamp(player.pos.x, 0, model.world.width - player.size.x)
+  player.pos.y = clamp(player.pos.y, 0, model.world.height - player.size.y)
+}
+
+/**
+ * @param {GameActorData} player
+ * @param {number} left
+ * @param {number} top
+ * @param {number} width
+ * @param {number} height
+ * @returns {boolean}
+ */
+function isOverlappingRect(player, left, top, width, height) {
+  return (
+    player.pos.x < left + width &&
+    player.pos.x + player.size.x > left &&
+    player.pos.y < top + height &&
+    player.pos.y + player.size.y > top
+  )
 }
 
 /**
@@ -173,16 +252,44 @@ function resolveLocks(model) {
 function resolveSolidOverlap(player, object) {
   const objectX = object.x * TILE_SIZE
   const objectWidth = object.width * TILE_SIZE
+  const objectBottomY = object.y * TILE_SIZE
+  const objectTopY = objectBottomY - (object.height - 1) * TILE_SIZE
+  const objectHeight = object.height * TILE_SIZE
+  const playerCenterY = player.pos.y + player.size.y / 2
+  const objectCenterY = objectTopY + objectHeight / 2
+  const overlapLeft = player.pos.x + player.size.x - objectX
+  const overlapRight = objectX + objectWidth - player.pos.x
+  const overlapTop = player.pos.y + player.size.y - objectTopY
+  const overlapBottom = objectTopY + objectHeight - player.pos.y
+  const minOverlap = Math.min(
+    overlapLeft,
+    overlapRight,
+    overlapTop,
+    overlapBottom,
+  )
 
-  if (player.oldPos.x + player.size.x <= objectX) {
+  if (minOverlap === overlapLeft) {
     player.pos.x = objectX - player.size.x
     if (player.velocity.x > 0) player.velocity.x = 0
     return
   }
 
-  if (player.oldPos.x >= objectX + objectWidth) {
+  if (minOverlap === overlapRight) {
     player.pos.x = objectX + objectWidth
     if (player.velocity.x < 0) player.velocity.x = 0
+    return
+  }
+
+  if (minOverlap === overlapTop || playerCenterY < objectCenterY) {
+    player.pos.y = objectTopY - player.size.y
+    if (player.velocity.y > 0) player.velocity.y = 0
+    player.grounded = true
+    return
+  }
+
+  if (minOverlap === overlapBottom || playerCenterY >= objectCenterY) {
+    player.pos.y = objectTopY + objectHeight
+    if (player.velocity.y < 0) player.velocity.y = 0
   }
 }
 

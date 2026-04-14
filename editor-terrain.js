@@ -169,7 +169,7 @@ function buildLockObjects(terrainRows, occupiedTiles) {
       x,
       y,
       width: 1,
-      height: 1,
+      height: 3,
       solid: true,
       sprite: `lock_${color}`,
       collected: false,
