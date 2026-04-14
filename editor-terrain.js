@@ -3,10 +3,10 @@ const LEVEL_WIDTH = 48
 const LEVEL_HEIGHT = 12
 
 /**
+ * @param {number} [seed]
  * @returns {GameLevel}
  */
-export function generateLevel() {
-  const seed = createSeed()
+export function generateLevel(seed = createSeed()) {
   const terrain = buildTerrainRows(seed)
   const occupiedTiles = new Set()
   const objects = [

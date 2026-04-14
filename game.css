@@ -32,7 +32,17 @@ body {
   touch-action: manipulation;
 }
 
-.game_menu button {
+.game_debug {
+  display: flex;
+  position: absolute;
+  top: 2cqw;
+  left: 2cqw;
+  gap: 1cqw;
+  touch-action: manipulation;
+}
+
+.game_menu button,
+.game_debug button {
   appearance: none;
   box-shadow: 0 0.6cqw 1.6cqw rgb(2 6 23 / 35%);
   border: 0.35cqw solid #e2e8f0;

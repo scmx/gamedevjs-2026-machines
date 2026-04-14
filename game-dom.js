@@ -27,6 +27,30 @@ export function listen(view, keyboard) {
   })
 }
 
+/**
+ * @param {number} seed
+ */
+export function bindSeedButton(seed) {
+  const seedButton = document.querySelector("#seed_button")
+  if (!(seedButton instanceof globalThis.HTMLButtonElement)) return
+
+  seedButton.textContent = `Seed ${seed}`
+  seedButton.addEventListener("pointerup", async (event) => {
+    event.preventDefault()
+    console.log("Level seed:", seed)
+
+    try {
+      await navigator.clipboard.writeText(String(seed))
+      seedButton.textContent = "Seed Copied"
+      globalThis.setTimeout(() => {
+        seedButton.textContent = `Seed ${seed}`
+      }, 1200)
+    } catch {
+      seedButton.textContent = `Seed ${seed}`
+    }
+  })
+}
+
 /** @param {import('./game-state.js').GameView} view */
 export function resize(view) {
   const width = view.ctx.canvas.clientWidth
