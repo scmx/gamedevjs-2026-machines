@@ -1,5 +1,11 @@
 import { TILE_SIZE } from "./game-state.js"
 
+/** @type {string[]} */
+const imagePathsUsed = []
+export function getImagePathsUsed() {
+  return imagePathsUsed
+}
+
 const PLAYER_DRAW_SIZE = 40
 const BG_IMG_WIDTH = 256
 const backgroundImages = [
@@ -94,6 +100,7 @@ const playerImages = {
     walk_b: loadCharacterImage("character_yellow_walk_b"),
   },
 }
+
 /** @type {Record<string, string>} */
 const playerLabelColors = {
   beige: "#f59e0b",
@@ -660,6 +667,7 @@ function loadTileImage(name) {
  * @param {string} src
  */
 function loadImage(src) {
+  imagePathsUsed.push(src)
   const image = document.createElement("img")
   image.decoding = "async"
   image.src = src
