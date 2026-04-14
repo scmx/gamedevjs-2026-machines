@@ -69,6 +69,7 @@ type GameActorData = {
   hearts: number
   maxHearts: number
   gems: number
+  keys: Record<string, boolean>
 }
 
 interface Window {

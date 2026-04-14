@@ -26,6 +26,20 @@ const gemImages = {
   gem_red: loadTileImage("gem_red"),
   gem_yellow: loadTileImage("gem_yellow"),
 }
+/** @type {Record<string, HTMLImageElement>} */
+const keyImages = {
+  key_blue: loadTileImage("key_blue"),
+  key_green: loadTileImage("key_green"),
+  key_red: loadTileImage("key_red"),
+  key_yellow: loadTileImage("key_yellow"),
+}
+/** @type {Record<string, HTMLImageElement>} */
+const hudKeyImages = {
+  blue: loadTileImage("hud_key_blue"),
+  green: loadTileImage("hud_key_green"),
+  red: loadTileImage("hud_key_red"),
+  yellow: loadTileImage("hud_key_yellow"),
+}
 const hudHeartImage = loadTileImage("hud_heart")
 const hudHeartEmptyImage = loadTileImage("hud_heart_empty")
 /** @type {Record<string, {
@@ -307,12 +321,16 @@ function drawObjects(model, view, offsetX, offsetY) {
   const ctx = view.ctx
   const drawSize = 26 * view.scale
   const fallbackGemImage = gemImages["gem_blue"]
+  const fallbackKeyImage = keyImages["key_blue"]
   const bounceDistance = 6 * view.scale
 
   for (const object of level.objects) {
-    if (object.kind !== "gem" || object.collected) continue
+    if (object.collected) continue
 
-    const image = gemImages[object.sprite ?? "gem_blue"] ?? fallbackGemImage
+    const image =
+      object.kind === "key"
+        ? (keyImages[object.sprite ?? "key_blue"] ?? fallbackKeyImage)
+        : (gemImages[object.sprite ?? "gem_blue"] ?? fallbackGemImage)
     const objectX = offsetX + object.x * TILE_SIZE * view.scale
     const objectY = offsetY + object.y * TILE_SIZE * view.scale
     const bounceOffset =
@@ -335,7 +353,7 @@ function drawObjects(model, view, offsetX, offsetY) {
       continue
     }
 
-    ctx.fillStyle = "#38bdf8"
+    ctx.fillStyle = object.kind === "key" ? "#facc15" : "#38bdf8"
     ctx.beginPath()
     ctx.arc(
       drawX + drawSize / 2,
@@ -442,7 +460,7 @@ function drawPlayerLabel(player, view, offsetX, offsetY, playerX, playerY) {
 function drawHud(model, view, width, height) {
   const ctx = view.ctx
   const panelWidth = Math.min(190, width / Math.max(1, model.players.length))
-  const panelHeight = 54
+  const panelHeight = 76
   const margin = 12
 
   for (const player of model.players) {
@@ -463,6 +481,7 @@ function drawHud(model, view, width, height) {
 
     drawHudHearts(ctx, player, panelX + 10, panelY + 24)
     drawHudGems(ctx, player, panelX + 110, panelY + 22)
+    drawHudKeys(ctx, player, panelX + 10, panelY + 48)
     ctx.restore()
   }
 }
@@ -510,6 +529,34 @@ function drawHudGems(ctx, player, x, y) {
   ctx.font = "12px monospace"
   ctx.textBaseline = "middle"
   ctx.fillText(`${player.gems}`, x + size + 8, y + size / 2)
+}
+
+/**
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {GameActorData} player
+ * @param {number} x
+ * @param {number} y
+ */
+function drawHudKeys(ctx, player, x, y) {
+  const keyColors = /** @type {const} */ (["blue", "green", "red", "yellow"])
+  const size = 14
+
+  for (let i = 0; i < keyColors.length; i++) {
+    const keyColor = keyColors[i]
+    if (!keyColor) continue
+    const image = hudKeyImages[keyColor]
+    const drawX = x + i * (size + 8)
+
+    ctx.save()
+    ctx.globalAlpha = player.keys[keyColor] ? 1 : 0.25
+    if (image?.complete) {
+      ctx.drawImage(image, drawX, y, size, size)
+    } else {
+      ctx.fillStyle = player.keys[keyColor] ? "#f8fafc" : "#475569"
+      ctx.fillRect(drawX, y, size, size)
+    }
+    ctx.restore()
+  }
 }
 
 /**

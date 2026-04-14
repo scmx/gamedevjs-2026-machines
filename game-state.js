@@ -50,6 +50,13 @@ export class GameActor {
     this.maxHearts = 3
     /** @type {number} */
     this.gems = 0
+    /** @type {Record<string, boolean>} */
+    this.keys = {
+      blue: false,
+      green: false,
+      red: false,
+      yellow: false,
+    }
     /** @type {number} */
     this.index = 0
   }

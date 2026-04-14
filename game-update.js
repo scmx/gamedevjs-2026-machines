@@ -103,12 +103,19 @@ function collectPickups(model) {
   if (!level) return
 
   for (const object of level.objects) {
-    if (object.kind !== "gem" || object.collected) continue
+    if (object.collected) continue
 
     for (const player of model.players) {
       if (!isOverlapping(player, object)) continue
       object.collected = true
-      player.gems += 1
+      if (object.kind === "gem") {
+        player.gems += 1
+      } else if (object.kind === "key") {
+        const keyColor = object.sprite?.replace("key_", "")
+        if (keyColor) {
+          player.keys[keyColor] = true
+        }
+      }
       break
     }
   }
