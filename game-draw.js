@@ -1,10 +1,17 @@
 import { TILE_SIZE } from "./game-state.js"
 
 const PLAYER_DRAW_SIZE = 40
+const BG_IMG_WIDTH = 256
 const backgroundImages = [
-  loadBackgroundImage("background_solid_sky"),
-  loadBackgroundImage("background_clouds"),
-  loadBackgroundImage("background_fade_hills"),
+  [loadBackgroundImage("background_solid_sky")],
+  [loadBackgroundImage("background_clouds")],
+  [
+    loadBackgroundImage("background_fade_hills"),
+    loadBackgroundImage("background_fade_trees"),
+    loadBackgroundImage("background_fade_desert"),
+    loadBackgroundImage("background_fade_mushrooms"),
+  ],
+  [loadBackgroundImage("background_solid_sky")],
 ]
 const grassBlockImage = loadTileImage("terrain_grass_block")
 const grassTopImage = loadTileImage("terrain_grass_block_top")
@@ -71,10 +78,18 @@ export function draw(model, view) {
 
   const worldWidth = model.world.width * view.scale
   const worldHeight = model.world.height * view.scale
-  const offsetX = (width - worldWidth) / 2
-  const offsetY = (height - worldHeight) / 2
+  updateCamera(model, view, width, height)
+  const cameraOffsets = getCameraOffsets(
+    model,
+    view,
+    width,
+    height,
+    worldWidth,
+    worldHeight,
+  )
+  const { offsetX, offsetY } = cameraOffsets
 
-  drawParallax(model, view, offsetX, offsetY, worldWidth, worldHeight)
+  drawParallax(model, view)
   // ctx.fillStyle = model.world.background
   // ctx.fillRect(offsetX, offsetY, worldWidth, worldHeight)
 
@@ -107,54 +122,147 @@ export function lerp(start, end, alpha) {
 }
 
 /**
+ * @param {number} value
+ * @param {number} min
+ * @param {number} max
+ */
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+/**
  * @param {import('./game-state.js').GameModel} model
  * @param {import('./game-state.js').GameView} view
- * @param {number} offsetX
- * @param {number} offsetY
+ */
+function drawParallax(model, view) {
+  /** @type {number[][]} */
+  backgroundImages.forEach((images, index) => {
+    const y = index * BG_IMG_WIDTH - 365
+    for (let i = 0, x = 0; x < view.ctx.canvas.width; i++, x += BG_IMG_WIDTH) {
+      const image = images[i % images.length]
+      if (image) view.ctx.drawImage(image, x - index * model.camera.x * 0.2, y)
+    }
+  })
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ * @param {import('./game-state.js').GameView} view
+ * @param {number} width
+ * @param {number} height
+ */
+function updateCamera(model, view, width, height) {
+  const viewportWorldWidth = width / view.scale
+  const viewportWorldHeight = height / view.scale
+  model.camera.viewportWidth = viewportWorldWidth
+  model.camera.viewportHeight = viewportWorldHeight
+  const desiredFocus = getPlayerFocus(model)
+  const desiredCameraX = clamp(
+    desiredFocus.x - viewportWorldWidth / 2,
+    0,
+    Math.max(0, model.world.width - viewportWorldWidth),
+  )
+  const desiredCameraY = clamp(
+    desiredFocus.y - viewportWorldHeight / 2,
+    0,
+    Math.max(0, model.world.height - viewportWorldHeight),
+  )
+
+  model.camera.x = lerp(model.camera.x, desiredCameraX, 0.12)
+  model.camera.y = lerp(model.camera.y, desiredCameraY, 0.12)
+}
+
+/**
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {HTMLImageElement} image
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {HTMLImageElement} image
+ * @param {{
+ *   x: number
+ *   y: number
+ *   width: number
+ *   height: number
+ *   tileWidth: number
+ *   scrollX: number
+ *   alpha: number
+ * }} region
+ */
+function drawTiledRegion(ctx, image, region) {
+  if (!image.complete) return
+
+  const { x, y, width, height, tileWidth, scrollX, alpha } = region
+  const tileHeight = tileWidth / (image.width / image.height)
+  const wrappedOffset = ((scrollX % tileWidth) + tileWidth) % tileWidth
+
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.beginPath()
+  ctx.rect(x, y, width, height)
+  ctx.clip()
+
+  for (
+    let tileY = y - tileHeight;
+    tileY < y + height + tileHeight;
+    tileY += tileHeight
+  ) {
+    for (
+      let tileX = x - wrappedOffset - tileWidth;
+      tileX < x + width + tileWidth;
+      tileX += tileWidth
+    ) {
+      ctx.drawImage(
+        image,
+        Math.round(tileX),
+        Math.round(tileY),
+        Math.round(tileWidth),
+        Math.round(tileHeight),
+      )
+    }
+  }
+  ctx.restore()
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ * @param {import('./game-state.js').GameView} view
+ * @param {number} width
+ * @param {number} height
  * @param {number} worldWidth
  * @param {number} worldHeight
  */
-function drawParallax(model, view, offsetX, offsetY, worldWidth, worldHeight) {
-  const ctx = view.ctx
-  const leadPlayer = model.players[0]
-  const focusX = leadPlayer
-    ? lerp(leadPlayer.oldPos.x, leadPlayer.pos.x, model.frameTime)
-    : 0
-  const worldProgress = focusX / model.world.width
-  const layers = [
-    { image: backgroundImages[0], speed: 0, alpha: 1 },
-    { image: backgroundImages[1], speed: 18, alpha: 0.75 },
-    { image: backgroundImages[2], speed: 42, alpha: 0.95 },
-  ]
+function getCameraOffsets(model, view, width, height, worldWidth, worldHeight) {
+  const centeredOffsetX = Math.max(0, (width - worldWidth) / 2)
+  const centeredOffsetY = Math.max(0, (height - worldHeight) / 2)
 
-  for (const layer of layers) {
-    if (!layer.image?.complete) continue
-    const image = layer.image
-    const imageAspect = image.width / image.height
-    const drawHeight = worldHeight
-    const drawWidth = drawHeight * imageAspect
-    const travel = Math.max(0, drawWidth - worldWidth)
-    const drawX = offsetX - travel * worldProgress - layer.speed * worldProgress
+  return {
+    offsetX: centeredOffsetX - model.camera.x * view.scale,
+    offsetY: centeredOffsetY - model.camera.y * view.scale,
+  }
+}
 
-    ctx.save()
-    ctx.globalAlpha = layer.alpha
-    ctx.drawImage(
-      image,
-      Math.round(drawX),
-      Math.round(offsetY),
-      Math.round(drawWidth),
-      Math.round(drawHeight),
-    )
-    if (drawX + drawWidth < offsetX + worldWidth) {
-      ctx.drawImage(
-        image,
-        Math.round(drawX + drawWidth - 1),
-        Math.round(offsetY),
-        Math.round(drawWidth),
-        Math.round(drawHeight),
-      )
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
+function getPlayerFocus(model) {
+  if (model.players.length === 0) {
+    return {
+      x: model.world.width / 2,
+      y: model.world.height / 2,
     }
-    ctx.restore()
+  }
+
+  let totalX = 0
+  let totalY = 0
+  for (const player of model.players) {
+    totalX +=
+      lerp(player.oldPos.x, player.pos.x, model.frameTime) + player.size.x / 2
+    totalY +=
+      lerp(player.oldPos.y, player.pos.y, model.frameTime) + player.size.y / 2
+  }
+
+  return {
+    x: totalX / model.players.length,
+    y: totalY / model.players.length,
   }
 }
 

@@ -20,6 +20,13 @@ type GameWorld = {
   ground: string
 }
 
+type GameCamera = {
+  x: number
+  y: number
+  viewportWidth: number
+  viewportHeight: number
+}
+
 type GameLevelGeneratedFrom = {
   version: number
   seed: number

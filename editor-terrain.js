@@ -1,5 +1,5 @@
 const LEVEL_VERSION = 1
-const LEVEL_WIDTH = 20
+const LEVEL_WIDTH = 48
 const LEVEL_HEIGHT = 12
 
 /**

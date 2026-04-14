@@ -12,6 +12,8 @@ export function update(model, inputs, deltaTime) {
     const input = inputs[player.index] ?? EMPTY_INPUT
     updatePlayer(player, model, input, deltaTime)
   }
+
+  constrainPlayerSpacing(model)
 }
 
 /**
@@ -90,4 +92,36 @@ function getFloorY(model, player) {
   }
 
   return model.world.height - player.size.y
+}
+
+/**
+ * Keep the active pair within the current camera view width so neither can leave the screen.
+ * @param {import('./game-state.js').GameModel} model
+ */
+function constrainPlayerSpacing(model) {
+  if (model.players.length < 2) return
+
+  const leftPlayer = model.players[0]
+  const rightPlayer = model.players[1]
+  if (!leftPlayer || !rightPlayer) return
+
+  const [playerA, playerB] =
+    leftPlayer.pos.x <= rightPlayer.pos.x
+      ? [leftPlayer, rightPlayer]
+      : [rightPlayer, leftPlayer]
+  const viewportWidth = model.camera.viewportWidth || 960
+  const maxGap = Math.max(160, viewportWidth - 180)
+  const currentGap = playerB.pos.x - playerA.pos.x
+  if (currentGap <= maxGap) return
+
+  const overlap = currentGap - maxGap
+  const shift = overlap / 2
+
+  playerA.pos.x += shift
+  playerB.pos.x -= shift
+  playerA.oldPos.x = playerA.pos.x
+  playerB.oldPos.x = playerB.pos.x
+
+  if (playerA.velocity.x < 0) playerA.velocity.x = 0
+  if (playerB.velocity.x > 0) playerB.velocity.x = 0
 }

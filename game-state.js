@@ -73,6 +73,13 @@ export class GameModel {
       background: "#0f172a",
       ground: "#1e293b",
     }
+    /** @type {GameCamera} */
+    this.camera = {
+      x: 0,
+      y: 0,
+      viewportWidth: 960,
+      viewportHeight: 540,
+    }
     /** @type {GameLevel[]} */
     this.levels = levels
     /** @type {GameActor[]} */
