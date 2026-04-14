@@ -1,12 +1,16 @@
-const TILE_SIZE = 48
-const GROUND_Y = 72
+import { TILE_SIZE } from "./game-state.js"
+
 const PLAYER_DRAW_SIZE = 40
 const backgroundImages = [
   loadBackgroundImage("background_solid_sky"),
   loadBackgroundImage("background_clouds"),
   loadBackgroundImage("background_fade_hills"),
 ]
+const grassBlockImage = loadTileImage("terrain_grass_block")
 const grassTopImage = loadTileImage("terrain_grass_block_top")
+const grassTopLeftImage = loadTileImage("terrain_grass_block_top_left")
+const grassTopRightImage = loadTileImage("terrain_grass_block_top_right")
+const grassVerticalTopImage = loadTileImage("terrain_grass_vertical_top")
 const terrainBlockImage = loadTileImage("terrain_grass_block_center")
 /** @type {Record<string, {
  *   idle: HTMLImageElement
@@ -45,6 +49,14 @@ const playerImages = {
     walk_a: loadCharacterImage("character_yellow_walk_a"),
     walk_b: loadCharacterImage("character_yellow_walk_b"),
   },
+}
+/** @type {Record<string, string>} */
+const playerLabelColors = {
+  beige: "#f59e0b",
+  green: "#22c55e",
+  pink: "#ec4899",
+  purple: "#c084fc",
+  yellow: "#eab308",
 }
 
 /**
@@ -156,47 +168,60 @@ function drawParallax(model, view, offsetX, offsetY, worldWidth, worldHeight) {
  */
 function drawGround(model, view, offsetX, offsetY, worldWidth, worldHeight) {
   const ctx = view.ctx
+  const level = model.levels[0]
   const tileSize = TILE_SIZE * view.scale
   const tileSpan = Math.ceil(tileSize) + 1
-  const groundTop = offsetY + worldHeight - GROUND_Y * view.scale
+  const terrainRows = level?.layers.terrain ?? []
 
-  if (grassTopImage.complete) {
-    for (let x = offsetX; x < offsetX + worldWidth + tileSize; x += tileSize) {
-      ctx.drawImage(
-        grassTopImage,
-        Math.round(x),
-        Math.round(groundTop),
-        tileSpan,
-        tileSpan,
-      )
-    }
-  }
+  for (let tileY = 0; tileY < terrainRows.length; tileY++) {
+    const row = terrainRows[tileY] ?? ""
+    for (let tileX = 0; tileX < row.length; tileX++) {
+      if (row[tileX] !== "1") continue
 
-  if (terrainBlockImage.complete) {
-    for (
-      let y = groundTop + tileSize;
-      y < offsetY + worldHeight + tileSize;
-      y += tileSize
-    ) {
-      for (
-        let x = offsetX;
-        x < offsetX + worldWidth + tileSize;
-        x += tileSize
-      ) {
+      const drawX = offsetX + tileX * tileSize
+      const drawY = offsetY + tileY * tileSize
+      const aboveRow = terrainRows[tileY - 1]
+      const isTopTile = !aboveRow || aboveRow[tileX] !== "1"
+
+      if (isTopTile) {
+        const tileImage = getTerrainTopImage(terrainRows, tileX, tileY)
+        if (tileImage.complete) {
+          ctx.drawImage(
+            tileImage,
+            Math.round(drawX),
+            Math.round(drawY),
+            tileSpan,
+            tileSpan,
+          )
+          continue
+        }
+      }
+
+      if (terrainBlockImage.complete) {
         ctx.drawImage(
           terrainBlockImage,
-          Math.round(x),
-          Math.round(y),
+          Math.round(drawX),
+          Math.round(drawY),
           tileSpan,
           tileSpan,
         )
+        continue
       }
+
+      ctx.fillStyle = model.world.ground
+      ctx.fillRect(drawX, drawY, tileSize, tileSize)
     }
-    return
   }
 
+  if (terrainRows.length > 0) return
+
   ctx.fillStyle = model.world.ground
-  ctx.fillRect(offsetX, groundTop, worldWidth, GROUND_Y * view.scale)
+  ctx.fillRect(
+    offsetX,
+    offsetY + worldHeight - tileSize * 2,
+    worldWidth,
+    tileSize * 2,
+  )
 }
 
 /**
@@ -225,6 +250,7 @@ function drawPlayer(player, model, view, offsetX, offsetY, playerX, playerY) {
       player.size.x * view.scale,
       player.size.y * view.scale,
     )
+    drawPlayerLabel(player, view, offsetX, offsetY, playerX, playerY)
     return
   }
 
@@ -237,6 +263,7 @@ function drawPlayer(player, model, view, offsetX, offsetY, playerX, playerY) {
     ctx.drawImage(image, drawX, drawY, size, size)
   }
   ctx.restore()
+  drawPlayerLabel(player, view, offsetX, offsetY, playerX, playerY)
 }
 
 /**
@@ -254,6 +281,61 @@ function getPlayerImage(player, model) {
   return Math.floor(model.simulationTime / 120) % 2 === 0
     ? images.walk_a
     : images.walk_b
+}
+
+/**
+ * @param {GameActorData} player
+ * @param {import('./game-state.js').GameView} view
+ * @param {number} offsetX
+ * @param {number} offsetY
+ * @param {number} playerX
+ * @param {number} playerY
+ */
+function drawPlayerLabel(player, view, offsetX, offsetY, playerX, playerY) {
+  const ctx = view.ctx
+  const centerX =
+    offsetX + playerX * view.scale + (player.size.x * view.scale) / 2
+  const labelY = offsetY + playerY * view.scale - 10 * view.scale
+
+  ctx.save()
+  ctx.font = `${Math.max(12, Math.round(14 * view.scale))}px monospace`
+  ctx.textAlign = "center"
+  ctx.textBaseline = "bottom"
+  ctx.lineWidth = Math.max(2, 3 * view.scale)
+  ctx.strokeStyle = "#020617"
+  ctx.fillStyle = getPlayerLabelColor(player)
+  ctx.strokeText(`P${player.index + 1}`, centerX, labelY)
+  ctx.fillText(`P${player.index + 1}`, centerX, labelY)
+  ctx.restore()
+}
+
+/**
+ * @param {GameActorData} player
+ * @returns {string}
+ */
+function getPlayerLabelColor(player) {
+  return playerLabelColors[player.skin] ?? player.color
+}
+
+/**
+ * @param {string[]} terrainRows
+ * @param {number} tileX
+ * @param {number} tileY
+ * @returns {HTMLImageElement}
+ */
+function getTerrainTopImage(terrainRows, tileX, tileY) {
+  const row = terrainRows[tileY] ?? ""
+  const belowRow = terrainRows[tileY + 1] ?? ""
+  const leftFilled = row[tileX - 1] === "1"
+  const rightFilled = row[tileX + 1] === "1"
+  const belowFilled = belowRow[tileX] === "1"
+
+  if (!leftFilled && !rightFilled) {
+    return belowFilled ? grassVerticalTopImage : grassBlockImage
+  }
+  if (!leftFilled) return grassTopLeftImage
+  if (!rightFilled) return grassTopRightImage
+  return grassTopImage
 }
 
 /**

@@ -1,5 +1,10 @@
-import { getInputs } from "./game-controller.js"
+import {
+  getConnectedGamepads,
+  getInputs,
+  hasPlayerTwoKeyboardInput,
+} from "./game-controller.js"
 import { draw } from "./game-draw.js"
+import { syncPlayerCount } from "./game-state.js"
 import { update } from "./game-update.js"
 
 /**
@@ -21,8 +26,14 @@ export function startGameLoop(model, view, keyboard, options = {}) {
 
     model.frameTime = (accumulator % model.interval) / model.interval
     while (accumulator >= model.interval) {
+      const gamepads = getConnectedGamepads()
+      const needsSecondPlayer =
+        gamepads.length > 1 ||
+        hasPlayerTwoKeyboardInput(keyboard) ||
+        model.players.length > 1
+      syncPlayerCount(model, needsSecondPlayer ? 2 : 1)
       model.simulationTime += model.interval
-      update(model, getInputs(keyboard), model.interval / 1000)
+      update(model, getInputs(keyboard, gamepads), model.interval / 1000)
       accumulator -= model.interval
     }
 

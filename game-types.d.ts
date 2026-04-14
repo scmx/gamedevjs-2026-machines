@@ -10,6 +10,7 @@ type GameInput = {
   jump: boolean
   left: boolean
   right: boolean
+  cycleSkin: boolean
 }
 
 type GameWorld = {
@@ -17,6 +18,32 @@ type GameWorld = {
   height: number
   background: string
   ground: string
+}
+
+type GameLevelGeneratedFrom = {
+  version: number
+  seed: number
+}
+
+type GameLevelObject = {
+  kind: string
+  x: number
+  y: number
+  width: number
+  height: number
+  solid?: boolean
+}
+
+type GameLevel = {
+  id: string
+  name: string
+  width: number
+  height: number
+  layers: {
+    terrain: string[]
+  }
+  objects: GameLevelObject[]
+  generatedFrom: GameLevelGeneratedFrom
 }
 
 type GameActorData = {
@@ -29,6 +56,7 @@ type GameActorData = {
   color: string
   skin: string
   grounded: boolean
+  cycleSkinPressed: boolean
 }
 
 interface Window {
