@@ -14,7 +14,7 @@ export default function init(back, tiles, objects) {
   if (!back || !tiles || !objects) throw new Error("Missing required canvases")
 
   addEventListener("load", () => {
-    const level = generateLevel(357762530)
+    const level = generateLevel(150108122) // 357762530)
     const model = createGameModel({ levels: [level] })
     window.MODEL = model
     const view = createGameView(back, tiles, objects)
