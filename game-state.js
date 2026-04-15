@@ -59,6 +59,8 @@ export class GameActor {
     }
     /** @type {number} */
     this.index = 0
+    /** @type {boolean} */
+    this.onLadder = false
   }
 }
 
@@ -100,6 +102,33 @@ export class GameModel {
     this.players.push(createDefaultPlayer(0, this.players))
     /** @type {number} */
     this.elapsed = 0
+
+    /** @type {boolean} */
+    this.editorMode = false
+    /** @type {number} */
+    this.editorTileX = 4
+    /** @type {number} */
+    this.editorTileY = 4
+    /** @type {number} */
+    this.editorThingIndex = 0
+    /** @type {boolean} */
+    this._editorPrevToggle = false
+    /** @type {boolean} */
+    this._editorPrevPlace = false
+    /** @type {boolean} */
+    this._editorPrevRemove = false
+    /** @type {boolean} */
+    this._editorPrevCycleNext = false
+    /** @type {boolean} */
+    this._editorPrevCyclePrev = false
+    /** @type {boolean} */
+    this._editorPrevCursorUp = false
+    /** @type {boolean} */
+    this._editorPrevCursorDown = false
+    /** @type {boolean} */
+    this._editorPrevCursorLeft = false
+    /** @type {boolean} */
+    this._editorPrevCursorRight = false
   }
 }
 

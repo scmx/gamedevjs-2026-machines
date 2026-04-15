@@ -33,7 +33,11 @@ export function startGameLoop(model, view, keyboard, options = {}) {
         model.players.length > 1
       syncPlayerCount(model, needsSecondPlayer ? 2 : 1)
       model.simulationTime += model.interval
-      update(model, getInputs(keyboard, gamepads), model.interval / 1000)
+      update(
+        model,
+        getInputs(keyboard, gamepads, model.editorMode),
+        model.interval / 1000,
+      )
       accumulator -= model.interval
     }
 

@@ -47,6 +47,7 @@ body {
   top: 2cqo;
   right: 2cqmin;
   gap: 1cqmin;
+  z-index: 10;
   touch-action: manipulation;
 }
 
@@ -56,6 +57,7 @@ body {
   top: 2cqmin;
   left: 2cqmin;
   gap: 1cqmin;
+  z-index: 20;
   touch-action: manipulation;
 }
 

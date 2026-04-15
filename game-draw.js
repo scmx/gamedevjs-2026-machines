@@ -1,3 +1,4 @@
+import { EDITOR_PLACEABLES, getEditorFocusWorld } from "./editor-init.js"
 import { TILE_SIZE } from "./game-state.js"
 
 /** @type {string[]} */
@@ -65,6 +66,9 @@ const doorClosedImage = loadTileImage("door_closed")
 const doorClosedTopImage = loadTileImage("door_closed_top")
 const doorOpenImage = loadTileImage("door_open")
 const doorOpenTopImage = loadTileImage("door_open_top")
+const ladderTopImage = loadTileImage("ladder_top")
+const ladderMiddleImage = loadTileImage("ladder_middle")
+const ladderBottomImage = loadTileImage("ladder_bottom")
 /** @type {HTMLCanvasElement | null} */
 let terrainCacheCanvas = null
 /** @type {string | null} */
@@ -155,6 +159,9 @@ export function draw(model, view) {
   }
 
   drawHud(model, view, width, height)
+  if (model.editorMode) {
+    drawEditorOverlay(model, view, width, height, offsetX, offsetY)
+  }
 }
 
 /**
@@ -244,6 +251,10 @@ function getCameraOffsets(model, view, width, height, worldWidth, worldHeight) {
  * @param {import('./game-state.js').GameModel} model
  */
 function getPlayerFocus(model) {
+  if (model.editorMode) {
+    return getEditorFocusWorld(model)
+  }
+
   if (model.players.length === 0) {
     return {
       x: model.world.width / 2,
@@ -386,6 +397,40 @@ function drawObjects(model, view, offsetX, offsetY) {
 
   for (const object of level.objects) {
     if (object.collected) continue
+
+    if (object.kind === "ladder") {
+      const objectX = offsetX + object.x * TILE_SIZE * view.scale
+      const drawColumnX = objectX + (object.width * tileSize - tileSize) / 2
+      const topTileRow = object.y - (object.height - 1)
+      for (let row = 0; row < object.height; row++) {
+        const tileRow = topTileRow + row
+        const drawY = offsetY + tileRow * TILE_SIZE * view.scale
+        const image =
+          row === 0
+            ? ladderTopImage
+            : row === object.height - 1
+              ? ladderBottomImage
+              : ladderMiddleImage
+        if (image?.complete) {
+          ctx.drawImage(
+            image,
+            Math.round(drawColumnX),
+            Math.round(drawY),
+            tileSpan,
+            tileSpan,
+          )
+        } else {
+          ctx.fillStyle = "#a16207"
+          ctx.fillRect(
+            Math.round(drawColumnX),
+            Math.round(drawY),
+            tileSpan,
+            tileSpan,
+          )
+        }
+      }
+      continue
+    }
 
     if (object.kind === "exit_door") {
       const objectX = offsetX + object.x * TILE_SIZE * view.scale
@@ -543,6 +588,7 @@ function getPlayerImage(player, model) {
   if (!images || !fallback) {
     return terrainBlockImage
   }
+  if (player.onLadder) return images.idle
   if (!player.grounded) return images.jump
   if (Math.abs(player.velocity.x) < 1) return images.idle
   return Math.floor(model.simulationTime / 120) % 2 === 0
@@ -613,6 +659,55 @@ function drawHud(model, view, width, height) {
     drawHudKeys(ctx, player, panelX + 10 * s, panelY + 48 * s, s)
     ctx.restore()
   }
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ * @param {import('./game-state.js').GameView} view
+ * @param {number} width
+ * @param {number} height
+ * @param {number} offsetX
+ * @param {number} offsetY
+ */
+function drawEditorOverlay(model, view, width, _height, offsetX, offsetY) {
+  const ctx = view.ctx.objects
+  const s = view.scale
+  const ts = TILE_SIZE * s
+  const px = offsetX + model.editorTileX * ts
+  const py = offsetY + model.editorTileY * ts
+
+  ctx.save()
+  ctx.strokeStyle = "#38bdf8"
+  ctx.lineWidth = Math.max(2, 2 * s)
+  ctx.setLineDash([6 * s, 4 * s])
+  ctx.strokeRect(Math.round(px), Math.round(py), Math.ceil(ts), Math.ceil(ts))
+  ctx.setLineDash([])
+
+  const thing = EDITOR_PLACEABLES[model.editorThingIndex]
+  const label = thing?.label ?? "?"
+  const slot = model.editorThingIndex + 1
+  const total = EDITOR_PLACEABLES.length
+  const barW = Math.min(340 * s, width - 24 * s)
+  const barH = 34 * s
+  const bx = (width - barW) / 2
+  const by = 10 * s
+
+  ctx.fillStyle = "rgba(2, 6, 23, 0.88)"
+  ctx.fillRect(bx, by, barW, barH)
+  ctx.strokeStyle = "#38bdf8"
+  ctx.lineWidth = Math.max(1, 2 * s)
+  ctx.strokeRect(bx, by, barW, barH)
+
+  ctx.fillStyle = "#e2e8f0"
+  ctx.font = `${Math.max(10, Math.round(12 * s))}px monospace`
+  ctx.textAlign = "center"
+  ctx.textBaseline = "middle"
+  ctx.fillText(
+    `EDITOR  ${label}  (${slot}/${total})  tile ${model.editorTileX},${model.editorTileY}`,
+    width / 2,
+    by + barH / 2,
+  )
+  ctx.restore()
 }
 
 /**

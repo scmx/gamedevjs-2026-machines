@@ -1,3 +1,4 @@
+import { updateEditor } from "./editor-init.js"
 import { generateLevel } from "./editor-terrain.js"
 import {
   TILE_SIZE,
@@ -12,6 +13,17 @@ import {
  */
 export function update(model, inputs, deltaTime) {
   model.elapsed += deltaTime
+
+  const p0 = inputs[0] ?? EMPTY_INPUT
+  updateEditor(model, p0)
+
+  if (model.editorMode) {
+    for (const player of model.players) {
+      player.velocity.x = 0
+      player.velocity.y = 0
+    }
+    return
+  }
 
   for (const player of model.players) {
     const input = inputs[player.index] ?? EMPTY_INPUT
@@ -40,6 +52,21 @@ export function updatePlayer(player, model, input, deltaTime) {
   }
   player.cycleSkinPressed = input.cycleSkin
 
+  const ladder = findOverlappingLadder(model, player)
+  player.onLadder = Boolean(ladder)
+
+  if (player.onLadder) {
+    const axisX = Number(input.right) - Number(input.left)
+    player.velocity.x = axisX * player.speed * 0.4
+    const climb = Number(input.down) - Number(input.jump)
+    player.velocity.y = climb * 300
+    player.velocity.y += model.gravity * deltaTime * 0.15
+    player.pos.x += player.velocity.x * deltaTime
+    player.pos.y += player.velocity.y * deltaTime
+    resolveTerrainCollisions(model, player)
+    return
+  }
+
   const axisX = Number(input.right) - Number(input.left)
   if (input.jump && player.grounded) {
     player.velocity.y = -model.jumpSpeed
@@ -60,7 +87,34 @@ const EMPTY_INPUT = Object.freeze({
   jump: false,
   left: false,
   right: false,
+  editorToggle: false,
+  editorPlace: false,
+  editorRemove: false,
+  editorCycleNext: false,
+  editorCyclePrev: false,
+  editorCursorUp: false,
+  editorCursorDown: false,
+  editorCursorLeft: false,
+  editorCursorRight: false,
 })
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ * @param {GameActorData} player
+ * @returns {GameLevelObject | null}
+ */
+function findOverlappingLadder(model, player) {
+  const level = model.levels[0]
+  if (!level) return null
+
+  for (const object of level.objects) {
+    if (object.kind !== "ladder" || object.collected) continue
+    if (isOverlapping(player, object)) {
+      return object
+    }
+  }
+  return null
+}
 
 /**
  * @param {number} value
@@ -193,7 +247,8 @@ function collectPickups(model) {
     if (
       object.collected ||
       object.kind === "lock" ||
-      object.kind === "exit_door"
+      object.kind === "exit_door" ||
+      object.kind === "ladder"
     )
       continue
 
@@ -333,6 +388,16 @@ function advanceToNextLevel(model) {
   resetPlayersForNewLevel(model)
   model.camera.x = 0
   model.camera.y = 0
+  model.editorMode = false
+  model._editorPrevToggle = false
+  model._editorPrevPlace = false
+  model._editorPrevRemove = false
+  model._editorPrevCycleNext = false
+  model._editorPrevCyclePrev = false
+  model._editorPrevCursorUp = false
+  model._editorPrevCursorDown = false
+  model._editorPrevCursorLeft = false
+  model._editorPrevCursorRight = false
 }
 
 /**

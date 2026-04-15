@@ -11,6 +11,15 @@ type GameInput = {
   left: boolean
   right: boolean
   cycleSkin: boolean
+  editorToggle: boolean
+  editorPlace: boolean
+  editorRemove: boolean
+  editorCycleNext: boolean
+  editorCyclePrev: boolean
+  editorCursorUp: boolean
+  editorCursorDown: boolean
+  editorCursorLeft: boolean
+  editorCursorRight: boolean
 }
 
 type GameWorld = {
@@ -66,6 +75,7 @@ type GameActorData = {
   skin: string
   grounded: boolean
   cycleSkinPressed: boolean
+  onLadder: boolean
   hearts: number
   maxHearts: number
   gems: number
