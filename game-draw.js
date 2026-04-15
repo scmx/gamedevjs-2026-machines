@@ -22,7 +22,25 @@ const grassBlockImage = loadTileImage("terrain_grass_block")
 const grassTopImage = loadTileImage("terrain_grass_block_top")
 const grassTopLeftImage = loadTileImage("terrain_grass_block_top_left")
 const grassTopRightImage = loadTileImage("terrain_grass_block_top_right")
+const grassBlockBottomImage = loadTileImage("terrain_grass_block_bottom")
+const grassBlockBottomLeftImage = loadTileImage(
+  "terrain_grass_block_bottom_left",
+)
+const grassBlockBottomRightImage = loadTileImage(
+  "terrain_grass_block_bottom_right",
+)
+const grassBlockLeftImage = loadTileImage("terrain_grass_block_left")
+const grassBlockRightImage = loadTileImage("terrain_grass_block_right")
+const grassHorizontalLeftImage = loadTileImage("terrain_grass_horizontal_left")
+const grassHorizontalMiddleImage = loadTileImage(
+  "terrain_grass_horizontal_middle",
+)
+const grassHorizontalRightImage = loadTileImage(
+  "terrain_grass_horizontal_right",
+)
 const grassVerticalTopImage = loadTileImage("terrain_grass_vertical_top")
+const grassVerticalMiddleImage = loadTileImage("terrain_grass_vertical_middle")
+const grassVerticalBottomImage = loadTileImage("terrain_grass_vertical_bottom")
 const terrainBlockImage = loadTileImage("terrain_grass_block_center")
 /** @type {Record<string, HTMLImageElement>} */
 const gemImages = {
@@ -798,6 +816,22 @@ function getPlayerLabelColor(player) {
 
 /**
  * @param {string[]} terrainRows
+ * @param {number} x
+ * @param {number} y
+ * @returns {boolean}
+ */
+function isTerrainSolid(terrainRows, x, y) {
+  const row = terrainRows[y]
+  if (y < 0 || y >= terrainRows.length || !row || x < 0 || x >= row.length) {
+    return false
+  }
+  return row[x] === "1"
+}
+
+/**
+ * Grass/dirt top-row variants (exposed upward, solid below).
+ *
+ * @param {string[]} terrainRows
  * @param {number} tileX
  * @param {number} tileY
  * @returns {HTMLImageElement}
@@ -815,6 +849,76 @@ function getTerrainTopImage(terrainRows, tileX, tileY) {
   if (!leftFilled) return grassTopLeftImage
   if (!rightFilled) return grassTopRightImage
   return grassTopImage
+}
+
+/**
+ * Picks grass/dirt tile from neighbor mask (floating islands, cliffs, strips).
+ *
+ * @param {string[]} terrainRows
+ * @param {number} tileX
+ * @param {number} tileY
+ * @returns {HTMLImageElement}
+ */
+function getTerrainTileForCell(terrainRows, tileX, tileY) {
+  const U = isTerrainSolid(terrainRows, tileX, tileY - 1)
+  const D = isTerrainSolid(terrainRows, tileX, tileY + 1)
+  const L = isTerrainSolid(terrainRows, tileX - 1, tileY)
+  const R = isTerrainSolid(terrainRows, tileX + 1, tileY)
+  const aU = !U
+  const aD = !D
+  const aL = !L
+  const aR = !R
+
+  if (U && D && L && R) {
+    return terrainBlockImage
+  }
+
+  if (aU && aL && D && R) {
+    return grassTopLeftImage
+  }
+  if (aU && aR && D && L) {
+    return grassTopRightImage
+  }
+  if (aD && aL && U && R) {
+    return grassBlockBottomLeftImage
+  }
+  if (aD && aR && U && L) {
+    return grassBlockBottomRightImage
+  }
+
+  if (aU && D) {
+    return getTerrainTopImage(terrainRows, tileX, tileY)
+  }
+
+  if (aD && U && L && R) {
+    return grassBlockBottomImage
+  }
+
+  if (aL && U && D && R) {
+    return grassBlockLeftImage
+  }
+  if (aR && U && D && L) {
+    return grassBlockRightImage
+  }
+
+  if (aU && aD && L && R) {
+    return grassHorizontalMiddleImage
+  }
+  if (aU && aD && aL && R) {
+    return grassHorizontalLeftImage
+  }
+  if (aU && aD && aR && L) {
+    return grassHorizontalRightImage
+  }
+
+  if (aL && aR && U && D) {
+    return grassVerticalMiddleImage
+  }
+  if (aL && aR && U && aD) {
+    return grassVerticalBottomImage
+  }
+
+  return grassBlockImage
 }
 
 /**
@@ -843,11 +947,7 @@ function getTerrainCache(level) {
 
       const drawX = tileX * TILE_SIZE
       const drawY = tileY * TILE_SIZE
-      const aboveRow = terrainRows[tileY - 1]
-      const isTopTile = !aboveRow || aboveRow[tileX] !== "1"
-      const tileImage = isTopTile
-        ? getTerrainTopImage(terrainRows, tileX, tileY)
-        : terrainBlockImage
+      const tileImage = getTerrainTileForCell(terrainRows, tileX, tileY)
 
       if (tileImage.complete) {
         ctx.drawImage(tileImage, drawX, drawY, TILE_SIZE + 1, TILE_SIZE + 1)
