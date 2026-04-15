@@ -228,3 +228,33 @@ function createDefaultPlayer(index, players) {
     getRandomUnusedPlayerSkin(players),
   )
 }
+
+/**
+ * Snap players to spawn positions and clear per-level keys after a level transition.
+ *
+ * @param {GameModel} model
+ */
+export function resetPlayersForNewLevel(model) {
+  for (let i = 0; i < model.players.length; i++) {
+    const player = model.players[i]
+    if (!player) continue
+    const spawn = PLAYER_SPAWNS[i] ?? {
+      x: 120 + i * 60,
+      y: 120,
+      color: "#f8fafc",
+    }
+    player.pos.x = spawn.x
+    player.pos.y = spawn.y
+    player.oldPos.x = spawn.x
+    player.oldPos.y = spawn.y
+    player.velocity.x = 0
+    player.velocity.y = 0
+    player.grounded = false
+    player.keys = {
+      blue: false,
+      green: false,
+      red: false,
+      yellow: false,
+    }
+  }
+}

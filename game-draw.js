@@ -60,6 +60,11 @@ const hudKeyImages = {
 }
 const hudHeartImage = loadTileImage("hud_heart")
 const hudHeartEmptyImage = loadTileImage("hud_heart_empty")
+/** Individual exports from spritesheet-tiles-default.xml (64×64 SubTexture entries) */
+const doorClosedImage = loadTileImage("door_closed")
+const doorClosedTopImage = loadTileImage("door_closed_top")
+const doorOpenImage = loadTileImage("door_open")
+const doorOpenTopImage = loadTileImage("door_open_top")
 /** @type {HTMLCanvasElement | null} */
 let terrainCacheCanvas = null
 /** @type {string | null} */
@@ -371,9 +376,56 @@ function drawObjects(model, view, offsetX, offsetY) {
   const fallbackKeyImage = keyImages["key_blue"]
   const fallbackLockImage = lockImages["lock_blue"]
   const bounceDistance = 6 * view.scale
+  let allColorLocksCleared = true
+  for (const o of level.objects) {
+    if (o.kind === "lock" && !o.collected) {
+      allColorLocksCleared = false
+      break
+    }
+  }
 
   for (const object of level.objects) {
     if (object.collected) continue
+
+    if (object.kind === "exit_door") {
+      const objectX = offsetX + object.x * TILE_SIZE * view.scale
+      const drawColumnX = objectX + (object.width * tileSize - tileSize) / 2
+      const topTileRow = object.y - (object.height - 1)
+      const unlocked = allColorLocksCleared
+
+      for (let row = 0; row < object.height; row++) {
+        const tileRow = topTileRow + row
+        const drawY = offsetY + tileRow * TILE_SIZE * view.scale
+        const image = unlocked
+          ? row === 0
+            ? doorOpenTopImage
+            : doorOpenImage
+          : row === 0
+            ? doorClosedTopImage
+            : doorClosedImage
+
+        if (image?.complete) {
+          ctx.drawImage(
+            image,
+            Math.round(drawColumnX),
+            Math.round(drawY),
+            tileSpan,
+            tileSpan,
+          )
+        } else {
+          ctx.fillStyle = unlocked
+            ? "rgba(34, 197, 94, 0.45)"
+            : "rgba(15, 23, 42, 0.92)"
+          ctx.fillRect(
+            Math.round(drawColumnX),
+            Math.round(drawY),
+            tileSpan,
+            tileSpan,
+          )
+        }
+      }
+      continue
+    }
 
     const image =
       object.kind === "lock"

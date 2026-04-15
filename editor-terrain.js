@@ -14,6 +14,10 @@ export function generateLevel(seed = createSeed()) {
     ...buildKeyObjects(terrain, occupiedTiles),
     ...buildLockObjects(terrain, occupiedTiles),
   ]
+  const exitDoor = buildExitDoor(terrain, occupiedTiles)
+  if (exitDoor) {
+    objects.push(exitDoor)
+  }
 
   return {
     id: `generated-${seed}`,
@@ -178,6 +182,43 @@ function buildLockObjects(terrainRows, occupiedTiles) {
   }
 
   return objects
+}
+
+/**
+ * Exit door at the right side of the level. Passable only after every color lock is
+ * opened (see {@link buildLockObjects}).
+ *
+ * @param {string[]} terrainRows
+ * @param {Set<string>} occupiedTiles
+ * @returns {GameLevelObject | null}
+ */
+function buildExitDoor(terrainRows, occupiedTiles) {
+  let x = LEVEL_WIDTH - 2
+  let surfaceY = getSurfaceY(terrainRows, x)
+  let y = Math.max(1, surfaceY - 1)
+
+  while (x > 2 && occupiedTiles.has(`${x},${y}`)) {
+    x -= 1
+    surfaceY = getSurfaceY(terrainRows, x)
+    y = Math.max(1, surfaceY - 1)
+  }
+
+  if (occupiedTiles.has(`${x},${y}`)) {
+    return null
+  }
+
+  occupiedTiles.add(`${x},${y}`)
+
+  return {
+    kind: "exit_door",
+    x,
+    y,
+    width: 1,
+    height: 2,
+    solid: true,
+    sprite: "exit_door",
+    collected: false,
+  }
 }
 
 /**

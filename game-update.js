@@ -1,4 +1,9 @@
-import { TILE_SIZE, cyclePlayerSkin } from "./game-state.js"
+import { generateLevel } from "./editor-terrain.js"
+import {
+  TILE_SIZE,
+  cyclePlayerSkin,
+  resetPlayersForNewLevel,
+} from "./game-state.js"
 
 /**
  * @param {import('./game-state.js').GameModel} model
@@ -14,7 +19,9 @@ export function update(model, inputs, deltaTime) {
   }
 
   resolveLocks(model)
+  resolveExitDoorSolid(model)
   collectPickups(model)
+  tryExitDoorLevelTransition(model)
   constrainPlayerSpacing(model)
 }
 
@@ -183,7 +190,12 @@ function collectPickups(model) {
   if (!level) return
 
   for (const object of level.objects) {
-    if (object.collected || object.kind === "lock") continue
+    if (
+      object.collected ||
+      object.kind === "lock" ||
+      object.kind === "exit_door"
+    )
+      continue
 
     for (const player of model.players) {
       if (!isOverlapping(player, object)) continue
@@ -202,21 +214,34 @@ function collectPickups(model) {
 }
 
 /**
+ * Level objects use `object.y` as the bottom tile row (same as draw and
+ * {@link resolveSolidOverlap}), not the top row.
+ *
+ * @param {GameLevelObject} object
+ * @returns {{ left: number, top: number, width: number, height: number }}
+ */
+function getLevelObjectWorldBounds(object) {
+  const left = object.x * TILE_SIZE
+  const width = object.width * TILE_SIZE
+  const topOfBottomRow = object.y * TILE_SIZE
+  const top = topOfBottomRow - (object.height - 1) * TILE_SIZE
+  const height = object.height * TILE_SIZE
+  return { left, top, width, height }
+}
+
+/**
  * @param {GameActorData} player
  * @param {GameLevelObject} object
  * @returns {boolean}
  */
 function isOverlapping(player, object) {
-  const objectX = object.x * TILE_SIZE
-  const objectY = object.y * TILE_SIZE
-  const objectWidth = object.width * TILE_SIZE
-  const objectHeight = object.height * TILE_SIZE
+  const b = getLevelObjectWorldBounds(object)
 
   return (
-    player.pos.x < objectX + objectWidth &&
-    player.pos.x + player.size.x > objectX &&
-    player.pos.y < objectY + objectHeight &&
-    player.pos.y + player.size.y > objectY
+    player.pos.x < b.left + b.width &&
+    player.pos.x + player.size.x > b.left &&
+    player.pos.y < b.top + b.height &&
+    player.pos.y + player.size.y > b.top
   )
 }
 
@@ -246,21 +271,82 @@ function resolveLocks(model) {
 }
 
 /**
+ * @param {import('./game-state.js').GameModel} model
+ */
+function resolveExitDoorSolid(model) {
+  const level = model.levels[0]
+  if (!level || allColorLocksCleared(level)) return
+
+  for (const object of level.objects) {
+    if (object.kind !== "exit_door") continue
+
+    for (const player of model.players) {
+      if (!isOverlapping(player, object)) continue
+      resolveSolidOverlap(player, object)
+    }
+  }
+}
+
+/**
+ * @param {GameLevel} level
+ * @returns {boolean}
+ */
+function allColorLocksCleared(level) {
+  for (const object of level.objects) {
+    if (object.kind === "lock" && !object.collected) {
+      return false
+    }
+  }
+  return true
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
+function tryExitDoorLevelTransition(model) {
+  const level = model.levels[0]
+  if (!level || !allColorLocksCleared(level)) return
+
+  for (const object of level.objects) {
+    if (object.kind !== "exit_door") continue
+
+    for (const player of model.players) {
+      if (!isOverlapping(player, object)) continue
+      advanceToNextLevel(model)
+      return
+    }
+  }
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
+function advanceToNextLevel(model) {
+  const prev = model.levels[0]
+  if (!prev) return
+
+  const seed = (prev.generatedFrom.seed + 7919) % 1_000_000_000
+  const nextLevel = generateLevel(seed)
+  model.levels[0] = nextLevel
+  model.world.width = nextLevel.width * TILE_SIZE
+  model.world.height = nextLevel.height * TILE_SIZE
+  resetPlayersForNewLevel(model)
+  model.camera.x = 0
+  model.camera.y = 0
+}
+
+/**
  * @param {GameActorData} player
  * @param {GameLevelObject} object
  */
 function resolveSolidOverlap(player, object) {
-  const objectX = object.x * TILE_SIZE
-  const objectWidth = object.width * TILE_SIZE
-  const objectBottomY = object.y * TILE_SIZE
-  const objectTopY = objectBottomY - (object.height - 1) * TILE_SIZE
-  const objectHeight = object.height * TILE_SIZE
+  const { left, top, width, height } = getLevelObjectWorldBounds(object)
   const playerCenterY = player.pos.y + player.size.y / 2
-  const objectCenterY = objectTopY + objectHeight / 2
-  const overlapLeft = player.pos.x + player.size.x - objectX
-  const overlapRight = objectX + objectWidth - player.pos.x
-  const overlapTop = player.pos.y + player.size.y - objectTopY
-  const overlapBottom = objectTopY + objectHeight - player.pos.y
+  const objectCenterY = top + height / 2
+  const overlapLeft = player.pos.x + player.size.x - left
+  const overlapRight = left + width - player.pos.x
+  const overlapTop = player.pos.y + player.size.y - top
+  const overlapBottom = top + height - player.pos.y
   const minOverlap = Math.min(
     overlapLeft,
     overlapRight,
@@ -269,26 +355,26 @@ function resolveSolidOverlap(player, object) {
   )
 
   if (minOverlap === overlapLeft) {
-    player.pos.x = objectX - player.size.x
+    player.pos.x = left - player.size.x
     if (player.velocity.x > 0) player.velocity.x = 0
     return
   }
 
   if (minOverlap === overlapRight) {
-    player.pos.x = objectX + objectWidth
+    player.pos.x = left + width
     if (player.velocity.x < 0) player.velocity.x = 0
     return
   }
 
   if (minOverlap === overlapTop || playerCenterY < objectCenterY) {
-    player.pos.y = objectTopY - player.size.y
+    player.pos.y = top - player.size.y
     if (player.velocity.y > 0) player.velocity.y = 0
     player.grounded = true
     return
   }
 
   if (minOverlap === overlapBottom || playerCenterY >= objectCenterY) {
-    player.pos.y = objectTopY + objectHeight
+    player.pos.y = top + height
     if (player.velocity.y < 0) player.velocity.y = 0
   }
 }
