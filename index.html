@@ -13,7 +13,9 @@
   </head>
   <body>
     <main class="game_shell">
-      <canvas id="game_canvas"></canvas>
+      <canvas id="background_canvas"></canvas>
+      <canvas id="tiles_canvas"></canvas>
+      <canvas id="objects_canvas"></canvas>
       <div class="game_debug">
         <button id="seed_button" type="button">Seed</button>
       </div>
@@ -24,8 +26,7 @@
     <script src="./zzfx.js"></script>
     <script type="module">
       import init from "./game-init.js"
-
-      init(game_canvas.getContext("2d"))
+      init(background_canvas, tiles_canvas, objects_canvas)
     </script>
   </body>
 </html>

@@ -105,10 +105,12 @@ export class GameModel {
 
 export class GameView {
   /**
-   * @param {CanvasRenderingContext2D} ctx
+   * @param {CanvasRenderingContext2D} back
+   * @param {CanvasRenderingContext2D} tiles
+   * @param {CanvasRenderingContext2D} objects
    */
-  constructor(ctx) {
-    this.ctx = ctx
+  constructor(back, tiles, objects) {
+    this.ctx = { back, tiles, objects }
     this.scale = 1
   }
 }
@@ -122,11 +124,18 @@ export function createGameModel(options) {
 }
 
 /**
- * @param {CanvasRenderingContext2D} ctx
+ * @param {HTMLCanvasElement} back
+ * @param {HTMLCanvasElement} tiles
+ * @param {HTMLCanvasElement} objects
  * @returns {GameView}
  */
-export function createGameView(ctx) {
-  return new GameView(ctx)
+export function createGameView(back, tiles, objects) {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   */
+  const getContext = (canvas) =>
+    /** @type {CanvasRenderingContext2D} */ (canvas.getContext("2d"))
+  return new GameView(getContext(back), getContext(tiles), getContext(objects))
 }
 
 /**

@@ -18,41 +18,59 @@ body {
 .game_shell {
   position: relative;
   container-type: inline-size;
-  aspect-ratio: 16 / 9;
-  width: min(100vw, calc(100dvh * 16 / 9));
+  width: 100dvw;
+  height: 100dvh;
+  overflow: hidden;
   touch-action: none;
+}
+
+.game_shell canvas {
+  position: absolute;
+  inset: 0;
+}
+
+#background_canvas {
+  z-index: 0;
+}
+
+#tiles_canvas {
+  z-index: 1;
+}
+
+#objects_canvas {
+  z-index: 2;
 }
 
 .game_menu {
   display: flex;
   position: absolute;
-  top: 2cqw;
-  right: 2cqw;
-  gap: 1cqw;
+  top: 2cqo;
+  right: 2cqmin;
+  gap: 1cqmin;
   touch-action: manipulation;
 }
 
 .game_debug {
   display: flex;
   position: absolute;
-  top: 2cqw;
-  left: 2cqw;
-  gap: 1cqw;
+  top: 2cqmin;
+  left: 2cqmin;
+  gap: 1cqmin;
   touch-action: manipulation;
 }
 
 .game_menu button,
 .game_debug button {
   appearance: none;
-  box-shadow: 0 0.6cqw 1.6cqw rgb(2 6 23 / 35%);
-  border: 0.35cqw solid #e2e8f0;
-  border-radius: 1.4cqw;
+  box-shadow: 0 0.6cqmin 1.6cqmin rgb(2 6 23 / 35%);
+  border: 0.35cqmin solid #e2e8f0;
+  border-radius: 1.4cqmin;
   background: rgb(15 23 42 / 78%);
-  padding: 0.9cqw 1.6cqw;
+  padding: 0.9cqmin 1.6cqmin;
   touch-action: manipulation;
   color: #e2e8f0;
   font:
-    700 2.4cqw/1.1 ui-sans-serif,
+    700 2.4cqmin/1.1 ui-sans-serif,
     system-ui,
     sans-serif;
   -webkit-tap-highlight-color: transparent;

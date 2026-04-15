@@ -9,7 +9,6 @@ export function getImagePathsUsed() {
 const PLAYER_DRAW_SIZE = 40
 const BG_IMG_WIDTH = 256
 const backgroundImages = [
-  [loadBackgroundImage("background_solid_sky")],
   [loadBackgroundImage("background_clouds")],
   [
     loadBackgroundImage("background_fade_hills"),
@@ -17,7 +16,6 @@ const backgroundImages = [
     loadBackgroundImage("background_fade_desert"),
     loadBackgroundImage("background_fade_mushrooms"),
   ],
-  [loadBackgroundImage("background_solid_sky")],
 ]
 const grassBlockImage = loadTileImage("terrain_grass_block")
 const grassTopImage = loadTileImage("terrain_grass_block_top")
@@ -62,6 +60,10 @@ const hudKeyImages = {
 }
 const hudHeartImage = loadTileImage("hud_heart")
 const hudHeartEmptyImage = loadTileImage("hud_heart_empty")
+/** @type {HTMLCanvasElement | null} */
+let terrainCacheCanvas = null
+/** @type {string | null} */
+let terrainCacheKey = null
 /** @type {Record<string, {
  *   idle: HTMLImageElement
  *   jump: HTMLImageElement
@@ -115,10 +117,11 @@ const playerLabelColors = {
  * @param {import('./game-state.js').GameView} view
  */
 export function draw(model, view) {
-  const ctx = view.ctx
-  const width = ctx.canvas.width / (window.devicePixelRatio || 1)
-  const height = ctx.canvas.height / (window.devicePixelRatio || 1)
-  clear(view, "#020617")
+  const width = view.ctx.tiles.canvas.width / (window.devicePixelRatio || 1)
+  const height = view.ctx.tiles.canvas.height / (window.devicePixelRatio || 1)
+  clear(view.ctx.back, "#020617")
+  clear(view.ctx.tiles)
+  clear(view.ctx.objects)
 
   const worldWidth = model.world.width * view.scale
   const worldHeight = model.world.height * view.scale
@@ -133,11 +136,11 @@ export function draw(model, view) {
   )
   const { offsetX, offsetY } = cameraOffsets
 
-  drawParallax(model, view)
+  drawParallax(model, view, offsetX, offsetY)
   // ctx.fillStyle = model.world.background
   // ctx.fillRect(offsetX, offsetY, worldWidth, worldHeight)
 
-  drawGround(model, view, offsetX, offsetY, worldWidth, worldHeight)
+  drawGround(model, view, width, height, worldWidth, worldHeight)
   drawObjects(model, view, offsetX, offsetY)
 
   for (const player of model.players) {
@@ -150,11 +153,13 @@ export function draw(model, view) {
 }
 
 /**
- * @param {import('./game-state.js').GameView} view
- * @param {string} color
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {string} [color]
  */
-export function clear(view, color) {
-  const ctx = view.ctx
+export function clear(ctx, color) {
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+  if (!color) return
+
   ctx.fillStyle = color
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 }
@@ -180,21 +185,6 @@ function clamp(value, min, max) {
 /**
  * @param {import('./game-state.js').GameModel} model
  * @param {import('./game-state.js').GameView} view
- */
-function drawParallax(model, view) {
-  /** @type {number[][]} */
-  backgroundImages.forEach((images, index) => {
-    const y = index * BG_IMG_WIDTH - 365
-    for (let i = 0, x = 0; x < view.ctx.canvas.width; i++, x += BG_IMG_WIDTH) {
-      const image = images[i % images.length]
-      if (image) view.ctx.drawImage(image, x - index * model.camera.x * 0.2, y)
-    }
-  })
-}
-
-/**
- * @param {import('./game-state.js').GameModel} model
- * @param {import('./game-state.js').GameView} view
  * @param {number} width
  * @param {number} height
  */
@@ -215,8 +205,16 @@ function updateCamera(model, view, width, height) {
     Math.max(0, model.world.height - viewportWorldHeight),
   )
 
-  model.camera.x = lerp(model.camera.x, desiredCameraX, 0.12)
-  model.camera.y = lerp(model.camera.y, desiredCameraY, 0.12)
+  model.camera.x = clamp(
+    lerp(model.camera.x, desiredCameraX, 0.12),
+    0,
+    Math.max(0, model.world.width - viewportWorldWidth),
+  )
+  model.camera.y = clamp(
+    lerp(model.camera.y, desiredCameraY, 0.12),
+    0,
+    Math.max(0, model.world.height - viewportWorldHeight),
+  )
 }
 
 /**
@@ -268,64 +266,91 @@ function getPlayerFocus(model) {
  * @param {import('./game-state.js').GameView} view
  * @param {number} offsetX
  * @param {number} offsetY
+ */
+function drawParallax(model, view, offsetX, offsetY) {
+  const ctx = view.ctx.back
+  ctx.fillStyle = "#c3e3ff"
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+
+  // const centeredOffsetX = Math.max(0, (width - worldWidth) / 2)
+  // const centeredOffsetY = Math.max(0, (height - worldHeight) / 2)
+  const size = Math.floor(BG_IMG_WIDTH * view.scale)
+  const viewportHeight = ctx.canvas.height
+  const cloudHeight = size
+  const fadeHeight = size
+  const skyHeight = Math.max(0, Math.round(viewportHeight * 0.16))
+  const cloudY = Math.floor(offsetY - cloudHeight * 0.5)
+  const fadeY = cloudY + cloudHeight
+
+  const bands = [
+    {
+      images: backgroundImages[0],
+      y: cloudY,
+      parallax: 0.3,
+      height: cloudHeight,
+    },
+    {
+      images: backgroundImages[1],
+      y: fadeY,
+      parallax: 0.6,
+      height: fadeHeight,
+    },
+  ]
+
+  for (const band of bands) {
+    const images = band.images
+    if (!images) continue
+    const scrollX = Math.floor(model.camera.x * band.parallax)
+    for (let i = -1, x = -size; x < ctx.canvas.width + size; i++, x += size) {
+      const image =
+        images[((i % images.length) + images.length) % images.length]
+      if (!image) continue
+      ctx.drawImage(image, x - scrollX, band.y, size, band.height)
+    }
+  }
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ * @param {import('./game-state.js').GameView} view
+ * @param {number} width
+ * @param {number} height
  * @param {number} worldWidth
  * @param {number} worldHeight
  */
-function drawGround(model, view, offsetX, offsetY, worldWidth, worldHeight) {
-  const ctx = view.ctx
+function drawGround(model, view, width, height, worldWidth, worldHeight) {
+  const ctx = view.ctx.tiles
   const level = model.levels[0]
   const tileSize = TILE_SIZE * view.scale
-  const tileSpan = Math.ceil(tileSize) + 1
-  const terrainRows = level?.layers.terrain ?? []
+  if (!level) return
+  const terrainRows = level.layers.terrain ?? []
 
-  for (let tileY = 0; tileY < terrainRows.length; tileY++) {
-    const row = terrainRows[tileY] ?? ""
-    for (let tileX = 0; tileX < row.length; tileX++) {
-      if (row[tileX] !== "1") continue
-
-      const drawX = offsetX + tileX * tileSize
-      const drawY = offsetY + tileY * tileSize
-      const aboveRow = terrainRows[tileY - 1]
-      const isTopTile = !aboveRow || aboveRow[tileX] !== "1"
-
-      if (isTopTile) {
-        const tileImage = getTerrainTopImage(terrainRows, tileX, tileY)
-        if (tileImage.complete) {
-          ctx.drawImage(
-            tileImage,
-            Math.round(drawX),
-            Math.round(drawY),
-            tileSpan,
-            tileSpan,
-          )
-          continue
-        }
-      }
-
-      if (terrainBlockImage.complete) {
-        ctx.drawImage(
-          terrainBlockImage,
-          Math.round(drawX),
-          Math.round(drawY),
-          tileSpan,
-          tileSpan,
-        )
-        continue
-      }
-
-      ctx.fillStyle = model.world.ground
-      ctx.fillRect(drawX, drawY, tileSize, tileSize)
-    }
+  if (terrainRows.length === 0) {
+    const centeredOffsetX = Math.max(0, (width - worldWidth) / 2)
+    const centeredOffsetY = Math.max(0, (height - worldHeight) / 2)
+    ctx.fillStyle = model.world.ground
+    ctx.fillRect(
+      centeredOffsetX,
+      centeredOffsetY + worldHeight - tileSize * 2,
+      worldWidth,
+      tileSize * 2,
+    )
+    return
   }
 
-  if (terrainRows.length > 0) return
+  const cache = getTerrainCache(level)
+  if (!cache) return
+  const centeredOffsetX = Math.max(0, (width - worldWidth) / 2)
+  const centeredOffsetY = Math.max(0, (height - worldHeight) / 2)
+  const drawX = Math.round(centeredOffsetX - model.camera.x * view.scale)
+  const drawY = Math.round(centeredOffsetY - model.camera.y * view.scale)
 
-  ctx.fillStyle = model.world.ground
-  ctx.fillRect(
-    offsetX,
-    offsetY + worldHeight - tileSize * 2,
-    worldWidth,
-    tileSize * 2,
+  ctx.drawImage(
+    cache,
+    drawX,
+    drawY,
+    Math.round(cache.width * view.scale),
+    Math.round(cache.height * view.scale),
   )
 }
 
@@ -339,7 +364,7 @@ function drawObjects(model, view, offsetX, offsetY) {
   const level = model.levels[0]
   if (!level) return
 
-  const ctx = view.ctx
+  const ctx = view.ctx.objects
   const tileSize = TILE_SIZE * view.scale
   const tileSpan = Math.ceil(tileSize) + 1
   const fallbackGemImage = gemImages["gem_blue"]
@@ -424,7 +449,7 @@ function drawObjects(model, view, offsetX, offsetY) {
  * @param {number} playerY
  */
 function drawPlayer(player, model, view, offsetX, offsetY, playerX, playerY) {
-  const ctx = view.ctx
+  const ctx = view.ctx.objects
   const image = getPlayerImage(player, model)
   const size = PLAYER_DRAW_SIZE * view.scale
   const drawX =
@@ -482,7 +507,7 @@ function getPlayerImage(player, model) {
  * @param {number} playerY
  */
 function drawPlayerLabel(player, view, offsetX, offsetY, playerX, playerY) {
-  const ctx = view.ctx
+  const ctx = view.ctx.objects
   const centerX =
     offsetX + playerX * view.scale + (player.size.x * view.scale) / 2
   const labelY = offsetY + playerY * view.scale - 10 * view.scale
@@ -506,10 +531,14 @@ function drawPlayerLabel(player, view, offsetX, offsetY, playerX, playerY) {
  * @param {number} height
  */
 function drawHud(model, view, width, height) {
-  const ctx = view.ctx
-  const panelWidth = Math.min(190, width / Math.max(1, model.players.length))
-  const panelHeight = 76
-  const margin = 12
+  const ctx = view.ctx.objects
+  const s = view.scale
+  const panelWidth = Math.min(
+    190 * s,
+    width / Math.max(1, model.players.length),
+  )
+  const panelHeight = 76 * s
+  const margin = 12 * s
 
   for (const player of model.players) {
     const panelX = margin + player.index * (panelWidth + margin)
@@ -519,17 +548,17 @@ function drawHud(model, view, width, height) {
     ctx.fillStyle = "rgba(2, 6, 23, 0.72)"
     ctx.fillRect(panelX, panelY, panelWidth, panelHeight)
     ctx.strokeStyle = getPlayerLabelColor(player)
-    ctx.lineWidth = 2
+    ctx.lineWidth = Math.max(1, 2 * s)
     ctx.strokeRect(panelX, panelY, panelWidth, panelHeight)
 
     ctx.fillStyle = "#e2e8f0"
-    ctx.font = "12px monospace"
+    ctx.font = `${Math.max(10, Math.round(12 * s))}px monospace`
     ctx.textBaseline = "top"
-    ctx.fillText(`P${player.index + 1}`, panelX + 10, panelY + 8)
+    ctx.fillText(`P${player.index + 1}`, panelX + 10 * s, panelY + 8 * s)
 
-    drawHudHearts(ctx, player, panelX + 10, panelY + 24)
-    drawHudGems(ctx, player, panelX + 110, panelY + 22)
-    drawHudKeys(ctx, player, panelX + 10, panelY + 48)
+    drawHudHearts(ctx, player, panelX + 10 * s, panelY + 24 * s, s)
+    drawHudGems(ctx, player, panelX + 110 * s, panelY + 22 * s, s)
+    drawHudKeys(ctx, player, panelX + 10 * s, panelY + 48 * s, s)
     ctx.restore()
   }
 }
@@ -539,13 +568,15 @@ function drawHud(model, view, width, height) {
  * @param {GameActorData} player
  * @param {number} x
  * @param {number} y
+ * @param {number} scale
  */
-function drawHudHearts(ctx, player, x, y) {
-  const size = 16
+function drawHudHearts(ctx, player, x, y, scale) {
+  const size = 16 * scale
+  const gap = 4 * scale
 
   for (let i = 0; i < player.maxHearts; i++) {
     const image = i < player.hearts ? hudHeartImage : hudHeartEmptyImage
-    const drawX = x + i * (size + 4)
+    const drawX = x + i * (size + gap)
     if (image.complete) {
       ctx.drawImage(image, drawX, y, size, size)
       continue
@@ -561,9 +592,10 @@ function drawHudHearts(ctx, player, x, y) {
  * @param {GameActorData} player
  * @param {number} x
  * @param {number} y
+ * @param {number} scale
  */
-function drawHudGems(ctx, player, x, y) {
-  const size = 16
+function drawHudGems(ctx, player, x, y, scale) {
+  const size = 16 * scale
   const hudGemImage = gemImages["gem_blue"]
 
   if (hudGemImage?.complete) {
@@ -574,9 +606,9 @@ function drawHudGems(ctx, player, x, y) {
   }
 
   ctx.fillStyle = "#f8fafc"
-  ctx.font = "12px monospace"
+  ctx.font = `${Math.max(10, Math.round(12 * scale))}px monospace`
   ctx.textBaseline = "middle"
-  ctx.fillText(`${player.gems}`, x + size + 8, y + size / 2)
+  ctx.fillText(`${player.gems}`, x + size + 8 * scale, y + size / 2)
 }
 
 /**
@@ -584,16 +616,18 @@ function drawHudGems(ctx, player, x, y) {
  * @param {GameActorData} player
  * @param {number} x
  * @param {number} y
+ * @param {number} scale
  */
-function drawHudKeys(ctx, player, x, y) {
+function drawHudKeys(ctx, player, x, y, scale) {
   const keyColors = /** @type {const} */ (["blue", "green", "red", "yellow"])
-  const size = 14
+  const size = 14 * scale
+  const gap = 8 * scale
 
   for (let i = 0; i < keyColors.length; i++) {
     const keyColor = keyColors[i]
     if (!keyColor) continue
     const image = hudKeyImages[keyColor]
-    const drawX = x + i * (size + 8)
+    const drawX = x + i * (size + gap)
 
     ctx.save()
     ctx.globalAlpha = player.keys[keyColor] ? 1 : 0.25
@@ -634,6 +668,52 @@ function getTerrainTopImage(terrainRows, tileX, tileY) {
   if (!leftFilled) return grassTopLeftImage
   if (!rightFilled) return grassTopRightImage
   return grassTopImage
+}
+
+/**
+ * @param {GameLevel} level
+ * @returns {HTMLCanvasElement | null}
+ */
+function getTerrainCache(level) {
+  const cacheKey = `${level.width}x${level.height}:${level.generatedFrom.seed}:${level.generatedFrom.version}`
+  if (terrainCacheCanvas && terrainCacheKey === cacheKey) {
+    return terrainCacheCanvas
+  }
+
+  const canvas = document.createElement("canvas")
+  canvas.width = level.width * TILE_SIZE
+  canvas.height = level.height * TILE_SIZE
+  const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext("2d"))
+  if (!ctx) return null
+  ctx.imageSmoothingEnabled = false
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  const terrainRows = level.layers.terrain ?? []
+  for (let tileY = 0; tileY < terrainRows.length; tileY++) {
+    const row = terrainRows[tileY] ?? ""
+    for (let tileX = 0; tileX < row.length; tileX++) {
+      if (row[tileX] !== "1") continue
+
+      const drawX = tileX * TILE_SIZE
+      const drawY = tileY * TILE_SIZE
+      const aboveRow = terrainRows[tileY - 1]
+      const isTopTile = !aboveRow || aboveRow[tileX] !== "1"
+      const tileImage = isTopTile
+        ? getTerrainTopImage(terrainRows, tileX, tileY)
+        : terrainBlockImage
+
+      if (tileImage.complete) {
+        ctx.drawImage(tileImage, drawX, drawY, TILE_SIZE + 1, TILE_SIZE + 1)
+      } else {
+        ctx.fillStyle = "#1e293b"
+        ctx.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE)
+      }
+    }
+  }
+
+  terrainCacheCanvas = canvas
+  terrainCacheKey = cacheKey
+  return terrainCacheCanvas
 }
 
 /**

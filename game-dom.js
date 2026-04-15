@@ -52,21 +52,33 @@ export function bindSeedButton(seed) {
 }
 
 /** @param {import('./game-state.js').GameView} view */
-export function resize(view) {
-  const width = view.ctx.canvas.clientWidth
-  const height = view.ctx.canvas.clientHeight
-  const dpr = window.devicePixelRatio || 1
-  const { canvas } = view.ctx
+export function resize(
+  view,
+  w = innerWidth,
+  h = innerHeight,
+  dpr = devicePixelRatio || 1,
+) {
+  view.scale = Math.min(w / 960, h / 540)
 
-  canvas.width = width * dpr
-  canvas.height = height * dpr
-  canvas.style.width = `${width}px`
-  canvas.style.height = `${height}px`
+  resizeCanvas(view.ctx.back, dpr, w, h)
+  resizeCanvas(view.ctx.tiles, dpr, w, h)
+  resizeCanvas(view.ctx.objects, dpr, w, h)
+}
 
-  const ctx = view.ctx
+/**
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} dpr
+ * @param {number} width
+ * @param {number} height
+ */
+export function resizeCanvas(ctx, dpr, width, height) {
+  ctx.canvas.width = width * dpr
+  ctx.canvas.height = height * dpr
+  ctx.canvas.style.width = `${width}px`
+  ctx.canvas.style.height = `${height}px`
+
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.imageSmoothingEnabled = false
-  view.scale = Math.min(width / 960, height / 540)
 }
 
 /**
