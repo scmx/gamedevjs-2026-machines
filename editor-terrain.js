@@ -1,20 +1,21 @@
-const LEVEL_VERSION = 1
+const LEVEL_VERSION = 2
 const LEVEL_WIDTH = 48
-const LEVEL_HEIGHT = 12
+/** Taller level for sky islands, deep valleys, and full-height edge walls. */
+const LEVEL_HEIGHT = 22
 
 /**
  * @param {number} [seed]
  * @returns {GameLevel}
  */
 export function generateLevel(seed = createSeed()) {
-  const terrain = buildTerrainRows(seed)
+  const { terrain, mainSurfaceY } = buildTerrainRows(seed)
   const occupiedTiles = new Set()
   const objects = [
-    ...buildGemObjects(terrain, occupiedTiles),
-    ...buildKeyObjects(terrain, occupiedTiles),
-    ...buildLockObjects(terrain, occupiedTiles),
+    ...buildGemObjects(terrain, occupiedTiles, mainSurfaceY),
+    ...buildKeyObjects(terrain, occupiedTiles, mainSurfaceY),
+    ...buildLockObjects(terrain, occupiedTiles, mainSurfaceY),
   ]
-  const exitDoor = buildExitDoor(terrain, occupiedTiles)
+  const exitDoor = buildExitDoor(terrain, occupiedTiles, mainSurfaceY)
   if (exitDoor) {
     objects.push(exitDoor)
   }
@@ -42,48 +43,129 @@ function createSeed() {
 
 /**
  * @param {number} seed
- * @returns {string[]}
+ * @returns {{ terrain: string[], mainSurfaceY: number[] }}
  */
 function buildTerrainRows(seed) {
   const rng = createRng(seed)
-  const surface = []
-  let height = 7
+  const h = LEVEL_HEIGHT
+  const w = LEVEL_WIDTH
 
-  for (let x = 0; x < LEVEL_WIDTH; x++) {
-    if (x > 1 && x < LEVEL_WIDTH - 2) {
-      const roll = rng()
-      if (roll < 0.25) height -= 1
-      else if (roll > 0.75) height += 1
-    }
-    height = clamp(height, 5, 8)
-    surface.push(height)
+  /** @type {boolean[][]} */
+  const solid = Array.from({ length: h }, () => Array(w).fill(false))
+  /** @type {number[]} Top solid row index per column for main ground (before islands). */
+  const mainSurfaceY = []
+
+  for (let y = 0; y < h; y++) {
+    solid[y][0] = true
+    solid[y][w - 1] = true
   }
+
+  for (let y = h - 2; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      solid[y][x] = true
+    }
+  }
+
+  const minWalk = 5
+  const maxWalk = h - 8
+  let walk = Math.floor(minWalk + rng() * (maxWalk - minWalk + 1))
+
+  for (let x = 1; x < w - 1; x++) {
+    if (x > 2 && x < w - 3) {
+      const roll = rng()
+      if (roll < 0.26) {
+        walk += rng() < 0.52 ? -1 : 1
+      } else if (roll < 0.42) {
+        walk += rng() < 0.5 ? -2 : 2
+      }
+    }
+    walk = clamp(walk, minWalk, maxWalk)
+    mainSurfaceY[x] = walk
+
+    for (let y = walk; y < h - 2; y++) {
+      solid[y][x] = true
+    }
+  }
+
+  mainSurfaceY[0] = mainSurfaceY[1] ?? minWalk
+  mainSurfaceY[w - 1] = mainSurfaceY[w - 2] ?? minWalk
+
+  const islandAttempts = 6 + Math.floor(rng() * 7)
+  for (let i = 0; i < islandAttempts; i++) {
+    const islandW = 3 + Math.floor(rng() * 6)
+    const islandH = 2 + Math.floor(rng() * 2)
+    const maxLeft = w - 2 - islandW
+    if (maxLeft < 4) continue
+    const leftEdge = 3 + Math.floor(rng() * (maxLeft - 2))
+    const cx = leftEdge + Math.floor(islandW / 2)
+    const groundTop = mainSurfaceY[cx] ?? minWalk
+    const clearance = 3 + Math.floor(rng() * 2)
+    const maxTopY = Math.max(1, groundTop - islandH - clearance)
+    const topY = 1 + Math.floor(rng() * maxTopY)
+
+    let ok = true
+    for (let dx = 0; dx < islandW && ok; dx++) {
+      const x = cx - Math.floor(islandW / 2) + dx
+      if (x < 2 || x >= w - 2) {
+        ok = false
+        break
+      }
+      const g = mainSurfaceY[x] ?? groundTop
+      if (topY + islandH > g - clearance + 1) ok = false
+    }
+    if (!ok) continue
+
+    for (let dx = 0; dx < islandW; dx++) {
+      const x = cx - Math.floor(islandW / 2) + dx
+      if (x < 2 || x >= w - 2) continue
+      for (let dy = 0; dy < islandH; dy++) {
+        const y = topY + dy
+        if (y >= 1 && y < h - 2) solid[y][x] = true
+      }
+    }
+  }
+
+  thickenEdgeWalls(solid, h, w)
 
   /** @type {string[]} */
   const rows = []
-  for (let y = 0; y < LEVEL_HEIGHT; y++) {
+  for (let y = 0; y < h; y++) {
     let row = ""
-    for (let x = 0; x < LEVEL_WIDTH; x++) {
-      const surfaceHeight = surface[x] ?? LEVEL_HEIGHT
-      row += y >= surfaceHeight ? "1" : "0"
+    for (let x = 0; x < w; x++) {
+      row += solid[y][x] ? "1" : "0"
     }
     rows.push(row)
   }
 
-  return rows
+  return { terrain: rows, mainSurfaceY }
+}
+
+/**
+ * Second column of wall tiles for chunkier cliff faces at both edges.
+ *
+ * @param {boolean[][]} solid
+ * @param {number} h
+ * @param {number} w
+ */
+function thickenEdgeWalls(solid, h, w) {
+  for (let y = 0; y < h; y++) {
+    solid[y][1] = true
+    solid[y][w - 2] = true
+  }
 }
 
 /**
  * @param {string[]} terrainRows
  * @param {Set<string>} occupiedTiles
+ * @param {number[]} mainSurfaceY
  * @returns {GameLevelObject[]}
  */
-function buildGemObjects(terrainRows, occupiedTiles) {
+function buildGemObjects(terrainRows, occupiedTiles, mainSurfaceY) {
   /** @type {GameLevelObject[]} */
   const objects = []
 
   for (let x = 3; x < LEVEL_WIDTH - 3; x += 5) {
-    const surfaceY = getSurfaceY(terrainRows, x)
+    const surfaceY = mainSurfaceY[x] ?? getSurfaceY(terrainRows, x)
     if (surfaceY <= 1) continue
     const tileKey = `${x},${surfaceY - 1}`
     if (occupiedTiles.has(tileKey)) continue
@@ -106,9 +188,10 @@ function buildGemObjects(terrainRows, occupiedTiles) {
 /**
  * @param {string[]} terrainRows
  * @param {Set<string>} occupiedTiles
+ * @param {number[]} mainSurfaceY
  * @returns {GameLevelObject[]}
  */
-function buildKeyObjects(terrainRows, occupiedTiles) {
+function buildKeyObjects(terrainRows, occupiedTiles, mainSurfaceY) {
   const keyColors = ["blue", "green", "red", "yellow"]
   /** @type {GameLevelObject[]} */
   const objects = []
@@ -117,12 +200,12 @@ function buildKeyObjects(terrainRows, occupiedTiles) {
     const color = keyColors[index]
     if (!color) continue
     let x = 8 + index * 10
-    let surfaceY = getSurfaceY(terrainRows, x)
+    let surfaceY = mainSurfaceY[x] ?? getSurfaceY(terrainRows, x)
     let y = Math.max(1, surfaceY - 1)
 
     while (x < LEVEL_WIDTH - 1 && occupiedTiles.has(`${x},${y}`)) {
       x += 1
-      surfaceY = getSurfaceY(terrainRows, x)
+      surfaceY = mainSurfaceY[x] ?? getSurfaceY(terrainRows, x)
       y = Math.max(1, surfaceY - 1)
     }
 
@@ -146,9 +229,10 @@ function buildKeyObjects(terrainRows, occupiedTiles) {
 /**
  * @param {string[]} terrainRows
  * @param {Set<string>} occupiedTiles
+ * @param {number[]} mainSurfaceY
  * @returns {GameLevelObject[]}
  */
-function buildLockObjects(terrainRows, occupiedTiles) {
+function buildLockObjects(terrainRows, occupiedTiles, mainSurfaceY) {
   const keyColors = ["blue", "green", "red", "yellow"]
   /** @type {GameLevelObject[]} */
   const objects = []
@@ -157,12 +241,12 @@ function buildLockObjects(terrainRows, occupiedTiles) {
     const color = keyColors[index]
     if (!color) continue
     let x = 13 + index * 10
-    let surfaceY = getSurfaceY(terrainRows, x)
+    let surfaceY = mainSurfaceY[x] ?? getSurfaceY(terrainRows, x)
     let y = Math.max(1, surfaceY - 1)
 
     while (x < LEVEL_WIDTH - 1 && occupiedTiles.has(`${x},${y}`)) {
       x += 1
-      surfaceY = getSurfaceY(terrainRows, x)
+      surfaceY = mainSurfaceY[x] ?? getSurfaceY(terrainRows, x)
       y = Math.max(1, surfaceY - 1)
     }
 
@@ -190,16 +274,18 @@ function buildLockObjects(terrainRows, occupiedTiles) {
  *
  * @param {string[]} terrainRows
  * @param {Set<string>} occupiedTiles
+ * @param {number[]} mainSurfaceY
  * @returns {GameLevelObject | null}
  */
-function buildExitDoor(terrainRows, occupiedTiles) {
-  let x = LEVEL_WIDTH - 2
-  let surfaceY = getSurfaceY(terrainRows, x)
+function buildExitDoor(terrainRows, occupiedTiles, mainSurfaceY) {
+  /** Last interior column before the right cliff (`w - 2` is a full-height wall). */
+  let x = LEVEL_WIDTH - 3
+  let surfaceY = mainSurfaceY[x] ?? getSurfaceY(terrainRows, x)
   let y = Math.max(1, surfaceY - 1)
 
   while (x > 2 && occupiedTiles.has(`${x},${y}`)) {
     x -= 1
-    surfaceY = getSurfaceY(terrainRows, x)
+    surfaceY = mainSurfaceY[x] ?? getSurfaceY(terrainRows, x)
     y = Math.max(1, surfaceY - 1)
   }
 
