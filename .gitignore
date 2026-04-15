@@ -1,3 +1,4 @@
 *.zip
 node_modules/
 package-lock.json
+kenney-new-platformer-pack/
