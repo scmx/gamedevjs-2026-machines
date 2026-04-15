@@ -1,4 +1,8 @@
-import { EDITOR_PLACEABLES, getEditorFocusWorld } from "./editor-init.js"
+import {
+  EDITOR_COLORS,
+  EDITOR_PLACEABLES,
+  getEditorFocusWorld,
+} from "./editor-init.js"
 import { TILE_SIZE } from "./game-state.js"
 
 /** @type {string[]} */
@@ -372,7 +376,7 @@ function drawGround(model, view, width, height, worldWidth, worldHeight) {
     return
   }
 
-  const cache = getTerrainCache(level)
+  const cache = getTerrainCache(level, model)
   if (!cache) return
   const centeredOffsetX = Math.max(0, (width - worldWidth) / 2)
   const centeredOffsetY = Math.max(0, (height - worldHeight) / 2)
@@ -705,8 +709,8 @@ function drawEditorOverlay(model, view, width, _height, offsetX, offsetY) {
   const label = thing?.label ?? "?"
   const slot = model.editorThingIndex + 1
   const total = EDITOR_PLACEABLES.length
-  const barW = Math.min(340 * s, width - 24 * s)
-  const barH = 34 * s
+  const barW = Math.min(400 * s, width - 24 * s)
+  const barH = 58 * s
   const bx = (width - barW) / 2
   const by = 10 * s
 
@@ -720,10 +724,26 @@ function drawEditorOverlay(model, view, width, _height, offsetX, offsetY) {
   ctx.font = `${Math.max(10, Math.round(12 * s))}px monospace`
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
+  const color =
+    EDITOR_PLACEABLES[model.editorThingIndex]?.colors === true
+      ? (EDITOR_COLORS[model.editorColorIndex] ?? "?")
+      : "—"
   ctx.fillText(
-    `EDITOR  ${label}  (${slot}/${total})  tile ${model.editorTileX},${model.editorTileY}`,
+    `${label}  ${color}  [${slot}/${total}]  (${model.editorTileX},${model.editorTileY})`,
     width / 2,
-    by + barH / 2,
+    by + barH / 2 - 7 * s,
+  )
+  ctx.font = `${Math.max(8, Math.round(10 * s))}px monospace`
+  ctx.fillStyle = "#94a3b8"
+  ctx.fillText(
+    "Keys: B · Z/C tool · X color · F place · V remove · Arrows move",
+    width / 2,
+    by + barH / 2 + 8 * s,
+  )
+  ctx.fillText(
+    "Pad: B toggle · X color · LB/RB tool · LT place · RT remove · D-pad",
+    width / 2,
+    by + barH / 2 + 20 * s,
   )
   ctx.restore()
 }
@@ -923,10 +943,11 @@ function getTerrainTileForCell(terrainRows, tileX, tileY) {
 
 /**
  * @param {GameLevel} level
+ * @param {import('./game-state.js').GameModel} model
  * @returns {HTMLCanvasElement | null}
  */
-function getTerrainCache(level) {
-  const cacheKey = `${level.width}x${level.height}:${level.generatedFrom.seed}:${level.generatedFrom.version}`
+function getTerrainCache(level, model) {
+  const cacheKey = `${level.width}x${level.height}:${level.generatedFrom.seed}:${level.generatedFrom.version}:t${model.terrainRevision}`
   if (terrainCacheCanvas && terrainCacheKey === cacheKey) {
     return terrainCacheCanvas
   }

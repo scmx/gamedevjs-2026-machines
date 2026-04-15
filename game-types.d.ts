@@ -16,6 +16,7 @@ type GameInput = {
   editorRemove: boolean
   editorCycleNext: boolean
   editorCyclePrev: boolean
+  editorCycleColor: boolean
   editorCursorUp: boolean
   editorCursorDown: boolean
   editorCursorLeft: boolean

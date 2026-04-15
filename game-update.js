@@ -92,6 +92,7 @@ const EMPTY_INPUT = Object.freeze({
   editorRemove: false,
   editorCycleNext: false,
   editorCyclePrev: false,
+  editorCycleColor: false,
   editorCursorUp: false,
   editorCursorDown: false,
   editorCursorLeft: false,
@@ -389,11 +390,14 @@ function advanceToNextLevel(model) {
   model.camera.x = 0
   model.camera.y = 0
   model.editorMode = false
+  model.terrainRevision = 0
+  model.editorColorIndex = 0
   model._editorPrevToggle = false
   model._editorPrevPlace = false
   model._editorPrevRemove = false
   model._editorPrevCycleNext = false
   model._editorPrevCyclePrev = false
+  model._editorPrevColor = false
   model._editorPrevCursorUp = false
   model._editorPrevCursorDown = false
   model._editorPrevCursorLeft = false

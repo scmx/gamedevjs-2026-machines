@@ -111,6 +111,10 @@ export class GameModel {
     this.editorTileY = 4
     /** @type {number} */
     this.editorThingIndex = 0
+    /** @type {number} */
+    this.editorColorIndex = 0
+    /** @type {number} */
+    this.terrainRevision = 0
     /** @type {boolean} */
     this._editorPrevToggle = false
     /** @type {boolean} */
@@ -121,6 +125,8 @@ export class GameModel {
     this._editorPrevCycleNext = false
     /** @type {boolean} */
     this._editorPrevCyclePrev = false
+    /** @type {boolean} */
+    this._editorPrevColor = false
     /** @type {boolean} */
     this._editorPrevCursorUp = false
     /** @type {boolean} */

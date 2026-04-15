@@ -10,15 +10,16 @@ const KEYS = [
   "KeyA",
   "KeyS",
   "KeyD",
-  "KeyE",
-  "BracketLeft",
-  "BracketRight",
+  "KeyB",
+  "KeyZ",
+  "KeyX",
+  "KeyC",
   "KeyF",
   "KeyV",
-  "KeyC",
+  "KeyK",
 ]
 const PLAYER_TWO_KEY_OFFSET = 5
-const KEY_C = 14
+const KEY_K = 15
 
 /** @type {GameInput} */
 const EMPTY_INPUT = Object.freeze({
@@ -32,6 +33,7 @@ const EMPTY_INPUT = Object.freeze({
   editorRemove: false,
   editorCycleNext: false,
   editorCyclePrev: false,
+  editorCycleColor: false,
   editorCursorUp: false,
   editorCursorDown: false,
   editorCursorLeft: false,
@@ -123,10 +125,11 @@ function getPlayerOneKeyboardInput(keyboard, editorMode) {
       left: false,
       right: false,
       editorToggle: Boolean(keyboard[9]),
-      editorPlace: Boolean(keyboard[12]),
-      editorRemove: Boolean(keyboard[13]),
-      editorCycleNext: Boolean(keyboard[11]),
+      editorPlace: Boolean(keyboard[13]),
+      editorRemove: Boolean(keyboard[14]),
+      editorCycleNext: Boolean(keyboard[12]),
       editorCyclePrev: Boolean(keyboard[10]),
+      editorCycleColor: Boolean(keyboard[11]),
       editorCursorUp: Boolean(keyboard[0]),
       editorCursorDown: Boolean(keyboard[2]),
       editorCursorLeft: Boolean(keyboard[1]),
@@ -135,7 +138,7 @@ function getPlayerOneKeyboardInput(keyboard, editorMode) {
   }
 
   return {
-    cycleSkin: Boolean(keyboard[KEY_C]),
+    cycleSkin: Boolean(keyboard[KEY_K]),
     down: Boolean(keyboard[2]),
     jump: Boolean(keyboard[0] || keyboard[4]),
     left: Boolean(keyboard[1]),
@@ -145,6 +148,7 @@ function getPlayerOneKeyboardInput(keyboard, editorMode) {
     editorRemove: false,
     editorCycleNext: false,
     editorCyclePrev: false,
+    editorCycleColor: false,
     editorCursorUp: false,
     editorCursorDown: false,
     editorCursorLeft: false,
@@ -168,6 +172,7 @@ function getPlayerTwoKeyboardInput(keyboard) {
     editorRemove: false,
     editorCycleNext: false,
     editorCyclePrev: false,
+    editorCycleColor: false,
     editorCursorUp: false,
     editorCursorDown: false,
     editorCursorLeft: false,
@@ -191,17 +196,19 @@ function getConnectedGamepadInput(gamepads, playerIndex) {
 
   const lt = gamepad.buttons[6]?.value ?? 0
   const rt = gamepad.buttons[7]?.value ?? 0
+  const xPressed = isPressed(gamepad.buttons[2])
 
   if (playerIndex === 0) {
     return {
-      cycleSkin: isPressed(gamepad.buttons[2]),
+      cycleSkin: xPressed,
+      editorCycleColor: xPressed,
       down: vertical >= GAMEPAD_AXIS_DEADZONE || isPressed(gamepad.buttons[13]),
       jump: isPressed(gamepad.buttons[0]),
       left:
         horizontal <= -GAMEPAD_AXIS_DEADZONE || isPressed(gamepad.buttons[14]),
       right:
         horizontal >= GAMEPAD_AXIS_DEADZONE || isPressed(gamepad.buttons[15]),
-      editorToggle: isPressed(gamepad.buttons[3]),
+      editorToggle: isPressed(gamepad.buttons[1]),
       editorPlace: lt > TRIGGER_PRESS,
       editorRemove: rt > TRIGGER_PRESS,
       editorCycleNext: isPressed(gamepad.buttons[5]),
@@ -215,6 +222,7 @@ function getConnectedGamepadInput(gamepads, playerIndex) {
 
   return {
     cycleSkin: false,
+    editorCycleColor: false,
     jump: isPressed(gamepad.buttons[0]),
     left:
       horizontal <= -GAMEPAD_AXIS_DEADZONE || isPressed(gamepad.buttons[14]),
@@ -250,6 +258,7 @@ function mergeInputs(primary, secondary) {
     editorRemove: primary.editorRemove || secondary.editorRemove,
     editorCycleNext: primary.editorCycleNext || secondary.editorCycleNext,
     editorCyclePrev: primary.editorCyclePrev || secondary.editorCyclePrev,
+    editorCycleColor: primary.editorCycleColor || secondary.editorCycleColor,
     editorCursorUp: primary.editorCursorUp || secondary.editorCursorUp,
     editorCursorDown: primary.editorCursorDown || secondary.editorCursorDown,
     editorCursorLeft: primary.editorCursorLeft || secondary.editorCursorLeft,
