@@ -24,6 +24,8 @@ const PLAYER_SPAWNS = Object.freeze([
   { x: 180, y: 120, color: "#38bdf8" },
 ])
 
+import { ensureTerrainVariant } from "./terrain-biome.js"
+
 export class GameActor {
   constructor() {
     /** @type {GameVector} */
@@ -49,7 +51,20 @@ export class GameActor {
     /** @type {number} */
     this.maxHearts = 3
     /** @type {number} */
+    this.heartHalves = 6
+    /** @type {number} */
+    this.maxHeartHalves = 6
+    /** @type {number} */
+    this.hurtCooldown = 0
+    /** @type {number} */
     this.gems = 0
+    /** @type {number} */
+    this.coins = 0
+    /** @type {boolean} */
+    this.shootPressed = false
+    /** Edge-detect for punch / interact near blocks (keyboard X, gamepad face X). */
+    /** @type {boolean} */
+    this.punchBlockPressed = false
     /** @type {Record<string, boolean>} */
     this.keys = {
       blue: false,
@@ -61,6 +76,8 @@ export class GameActor {
     this.index = 0
     /** @type {boolean} */
     this.onLadder = false
+    /** @type {boolean} */
+    this.inWater = false
   }
 }
 
@@ -70,6 +87,9 @@ export class GameModel {
    */
   constructor(options = {}) {
     const { levels = [] } = options
+    for (const lv of levels) {
+      if (lv) ensureTerrainVariant(lv)
+    }
     const activeLevel = levels[0]
     /** @type {number} */
     this.interval = 1000 / 60
@@ -103,39 +123,100 @@ export class GameModel {
     /** @type {number} */
     this.elapsed = 0
 
-    /** @type {boolean} */
+    /**
+     * Shared: either player’s editor-toggle (B) enters or exits editor for both.
+     * @type {boolean}
+     */
     this.editorMode = false
-    /** @type {number} */
-    this.editorTileX = 4
-    /** @type {number} */
-    this.editorTileY = 4
-    /** @type {number} */
-    this.editorThingIndex = 0
-    /** @type {number} */
-    this.editorColorIndex = 0
+    /** @type {boolean} */
+    this.menuOpen = false
+    /** @type {0 | 1 | 2 | 3} */
+    this.musicVolume = 3
+    /** @type {0 | 1 | 2 | 3} */
+    this.sfxVolume = 3
+    /** Edge-detect helper for combined B (either player). @type {boolean} */
+    this._editorPrevToggleAny = false
+    /** Edge-detect helper for combined menu toggle. @type {boolean} */
+    this._menuPrevToggleAny = false
+    /** @type {[number, number]} */
+    this.editorTileX = [4, 4]
+    /** @type {[number, number]} */
+    this.editorTileY = [4, 4]
+    /** @type {[number, number]} */
+    this.editorThingIndex = [0, 0]
+    /** @type {[number, number]} */
+    this.editorColorIndex = [0, 0]
+    /** @type {[number, number]} */
+    this.editorBiomeIndex = [0, 0]
+    /** @type {[number, number]} */
+    this.editorBlockVariantIndex = [0, 0]
+    /** @type {[number, number]} */
+    this.editorBridgeVariantIndex = [0, 0]
+    /** @type {[number, number]} */
+    this.editorRopeVariantIndex = [0, 0]
+    /** @type {[number, number]} */
+    this.editorRockVariantIndex = [0, 0]
+    /** @type {[number, number]} */
+    this.editorHazardVariantIndex = [0, 0]
+    /** @type {[number, number]} */
+    this.editorBrickVariantIndex = [0, 0]
+    /** @type {[number, number]} */
+    this.editorCoinVariantIndex = [0, 0]
+    /** @type {[boolean, boolean]} */
+    this.editorSpikeUpsideDown = [false, false]
+    /** @type {[Record<string, number>, Record<string, number>]} */
+    this.editorColorsById = [{}, {}]
     /** @type {number} */
     this.terrainRevision = 0
-    /** @type {boolean} */
-    this._editorPrevToggle = false
-    /** @type {boolean} */
-    this._editorPrevPlace = false
-    /** @type {boolean} */
-    this._editorPrevRemove = false
-    /** @type {boolean} */
-    this._editorPrevCycleNext = false
-    /** @type {boolean} */
-    this._editorPrevCyclePrev = false
-    /** @type {boolean} */
-    this._editorPrevColor = false
-    /** @type {boolean} */
-    this._editorPrevCursorUp = false
-    /** @type {boolean} */
-    this._editorPrevCursorDown = false
-    /** @type {boolean} */
-    this._editorPrevCursorLeft = false
-    /** @type {boolean} */
-    this._editorPrevCursorRight = false
+    /** @type {[boolean, boolean]} */
+    this._editorPrevPlace = [false, false]
+    /** @type {[boolean, boolean]} */
+    this._editorPrevRemove = [false, false]
+    /** @type {[boolean, boolean]} */
+    this._editorPrevUndo = [false, false]
+    /** @type {[boolean, boolean]} */
+    this._editorPrevLevelNext = [false, false]
+    /** @type {[boolean, boolean]} */
+    this._editorPrevLevelPrev = [false, false]
+    /** @type {[boolean, boolean]} */
+    this._editorPrevCycleNext = [false, false]
+    /** @type {[boolean, boolean]} */
+    this._editorPrevCyclePrev = [false, false]
+    /** @type {[boolean, boolean]} */
+    this._editorPrevColor = [false, false]
+    /** @type {[boolean, boolean]} */
+    this._editorPrevCursorUp = [false, false]
+    /** @type {[boolean, boolean]} */
+    this._editorPrevCursorDown = [false, false]
+    /** @type {[boolean, boolean]} */
+    this._editorPrevCursorLeft = [false, false]
+    /** @type {[boolean, boolean]} */
+    this._editorPrevCursorRight = [false, false]
+    /** Fluid tool: water vs lava (cycled with same variant keys as other tools). @type {[boolean, boolean]} */
+    this.editorFluidIsLava = [false, false]
+    /** Conveyor tool: 0 = belt right, 1 = belt left. @type {[number, number]} */
+    this.editorConveyorDirIndex = [0, 0]
+    /** Cursor moved this frame (arrow step); camera averages only these when non-empty. @type {[boolean, boolean]} */
+    this.editorCursorMovedThisFrame = [false, false]
+    /** @type {number} */
+    this._fishSpawnAccumulator = 0
+    /** Ordered editor ops on top of the procedural seed; downloadable as JSON. @type {object[]} */
+    this.editLog = []
+    /** @type {number} */
+    this.currentLevelIndex = 0
+    /** @type {number} Count of unlocked locks from the left. */
+    this.unlockedLocks = 0
+    /** @type {{ x: number, y: number } | null} */
+    this.lastUnlockedLockRespawn = null
   }
+}
+
+/**
+ * @param {GameModel} model
+ * @returns {boolean}
+ */
+export function isAnyEditorActive(model) {
+  return model.editorMode === true
 }
 
 export class GameView {
@@ -291,5 +372,37 @@ export function resetPlayersForNewLevel(model) {
       red: false,
       yellow: false,
     }
+  }
+  model.unlockedLocks = 0
+  model.lastUnlockedLockRespawn = null
+}
+
+/**
+ * When a player runs out of health, snap them back to spawn with full hearts.
+ *
+ * @param {GameModel} model
+ */
+export function respawnPlayersIfDead(model) {
+  const spawn = model.lastUnlockedLockRespawn
+  for (const player of model.players) {
+    if (player.heartHalves > 0) continue
+    const i = player.index
+    const fallback = PLAYER_SPAWNS[i] ?? {
+      x: 120 + i * 60,
+      y: 120,
+      color: "#f8fafc",
+    }
+    const sx = spawn?.x ?? fallback.x
+    const sy = spawn?.y ?? fallback.y
+    player.pos.x = sx
+    player.pos.y = sy
+    player.oldPos.x = sx
+    player.oldPos.y = sy
+    player.velocity.x = 0
+    player.velocity.y = 0
+    player.grounded = false
+    player.heartHalves = player.maxHeartHalves
+    player.hearts = player.maxHearts
+    player.hurtCooldown = 0
   }
 }

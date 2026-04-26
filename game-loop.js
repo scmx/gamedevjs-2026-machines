@@ -4,8 +4,14 @@ import {
   hasPlayerTwoKeyboardInput,
 } from "./game-controller.js"
 import { draw } from "./game-draw.js"
+import { resumeZzfxAudioIfGamepadActive } from "./game-sounds.js"
 import { syncPlayerCount } from "./game-state.js"
 import { update } from "./game-update.js"
+import {
+  syncEditorToolbarVisibility,
+  syncEditorRootAttribute,
+  syncMainMenuOverlay,
+} from "./game-dom.js"
 
 /**
  * @param {import('./game-state.js').GameModel} model
@@ -20,28 +26,36 @@ export function startGameLoop(model, view, keyboard, options = {}) {
   let previousTime = performance.now()
 
   loop(function frame(now) {
-    const frameTime = now - previousTime
-    previousTime = now
-    accumulator += frameTime
+    try {
+      const frameTime = now - previousTime
+      previousTime = now
+      accumulator += frameTime
 
-    model.frameTime = (accumulator % model.interval) / model.interval
-    while (accumulator >= model.interval) {
-      const gamepads = getConnectedGamepads()
-      const needsSecondPlayer =
-        gamepads.length > 1 ||
-        hasPlayerTwoKeyboardInput(keyboard) ||
-        model.players.length > 1
-      syncPlayerCount(model, needsSecondPlayer ? 2 : 1)
-      model.simulationTime += model.interval
-      update(
-        model,
-        getInputs(keyboard, gamepads, model.editorMode),
-        model.interval / 1000,
-      )
-      accumulator -= model.interval
+      model.frameTime = (accumulator % model.interval) / model.interval
+      while (accumulator >= model.interval) {
+        const gamepads = getConnectedGamepads()
+        resumeZzfxAudioIfGamepadActive(gamepads)
+        const needsSecondPlayer =
+          gamepads.length > 1 ||
+          hasPlayerTwoKeyboardInput(keyboard) ||
+          model.players.length > 1
+        syncPlayerCount(model, needsSecondPlayer ? 2 : 1)
+        model.simulationTime += model.interval
+        update(
+          model,
+          getInputs(keyboard, gamepads, model.editorMode),
+          model.interval / 1000,
+        )
+        accumulator -= model.interval
+      }
+
+      syncMainMenuOverlay(model)
+      syncEditorRootAttribute(model)
+      syncEditorToolbarVisibility(model)
+      draw(model, view)
+    } catch (err) {
+      console.error("[game] frame error", err)
     }
-
-    draw(model, view)
     loop(frame)
   })
 }

@@ -16,14 +16,68 @@
       <canvas id="background_canvas"></canvas>
       <canvas id="tiles_canvas"></canvas>
       <canvas id="objects_canvas"></canvas>
-      <div class="game_debug">
-        <button id="seed_button" type="button">Seed</button>
-      </div>
-      <div class="game_menu">
+      <button id="menu_button" class="menu_toggle_button" type="button">Menu</button>
+      <section id="main_menu" class="game_menu" hidden>
+        <div class="game_menu_panel">
+          <h1>Main Menu</h1>
+          <p>Menu button opens this overlay. O toggles the editor.</p>
+          <div class="game_menu_actions">
+            <button id="menu_resume_button" type="button">Resume</button>
+            <button id="menu_editor_button" type="button">Editor</button>
+            <button id="menu_music_button" type="button">Music 3</button>
+            <button id="menu_sfx_button" type="button">SFX 3</button>
+            <button id="menu_restart_button" type="button">Restart</button>
+          </div>
+        </div>
+      </section>
+      <div class="game_toolbar">
+        <button id="seed_button" type="button" data-editor-only="true">Seed</button>
+        <button id="music_button" type="button" data-editor-only="true">Music</button>
+        <button id="mount_button" type="button" data-editor-only="true">Mount Data</button>
+        <button id="import_button" type="button" data-editor-only="true">Import</button>
+        <button id="save_edits_button" type="button" data-editor-only="true">Export</button>
+        <button id="reload_edits_button" type="button" data-editor-only="true">Reload level</button>
+        <button id="undo_edits_button" type="button" data-editor-only="true">Undo edit</button>
+        <button id="autosave_button" type="button" data-editor-only="true">Auto-save OFF</button>
         <button id="restart_button" type="button">Restart</button>
       </div>
     </main>
+    <script type="importmap">
+      {
+        "imports": {
+          "./editor-block-variants.js": "./editor-block-variants.js?v=1776538009",
+          "./editor-brick-variants.js": "./editor-brick-variants.js?v=1776548385",
+          "./editor-coin-variants.js": "./editor-coin-variants.js?v=1776537952",
+          "./editor-decor-variants.js": "./editor-decor-variants.js?v=1776499025",
+          "./editor-edit-log.js": "./editor-edit-log.js?v=1776883251",
+          "./editor-edit-log.test.js": "./editor-edit-log.test.js?v=1776502041",
+          "./editor-hazard-variants.js": "./editor-hazard-variants.js?v=1776537952",
+          "./editor-init.js": "./editor-init.js?v=1777213130",
+          "./editor-ladder.js": "./editor-ladder.js?v=1776538227",
+          "./editor-placeables.js": "./editor-placeables.js?v=1777213077",
+          "./editor-terrain-ops.js": "./editor-terrain-ops.js?v=1776548409",
+          "./editor-terrain-ops.test.js": "./editor-terrain-ops.test.js?v=1776548150",
+          "./editor-terrain.js": "./editor-terrain.js?v=1776882230",
+          "./game-controller.js": "./game-controller.js?v=1777213279",
+          "./game-dom.js": "./game-dom.js?v=1777213157",
+          "./game-draw.js": "./game-draw.js?v=1777213254",
+          "./game-entities.js": "./game-entities.js?v=1776586666",
+          "./game-entities.test.js": "./game-entities.test.js?v=1776584668",
+          "./game-init.js": "./game-init.js?v=1777214078",
+          "./game-loop.js": "./game-loop.js?v=1777092600",
+          "./game-prefs.js": "./game-prefs.js?v=1777213097",
+          "./game-sounds.js": "./game-sounds.js?v=1777095751",
+          "./game-state.js": "./game-state.js?v=1777213103",
+          "./game-update.js": "./game-update.js?v=1777214366",
+          "./project-storage.js": "./project-storage.js?v=1776883891",
+          "./terrain-biome.js": "./terrain-biome.js?v=1776591377",
+          "./terrain-fluid.js": "./terrain-fluid.js?v=1776450934",
+          "./zzfxm.js": "./zzfxm.js?v=1776584719"
+        }
+      }
+    </script>
     <script src="./zzfx.js"></script>
+    <script src="./zzfxm.js"></script>
     <script type="module">
       import init from "./game-init.js"
       init(background_canvas, tiles_canvas, objects_canvas)

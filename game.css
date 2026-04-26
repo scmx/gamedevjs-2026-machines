@@ -17,16 +17,40 @@ body {
 
 .game_shell {
   position: relative;
-  container-type: inline-size;
+  container-type: size;
   width: 100dvw;
   height: 100dvh;
   overflow: hidden;
   touch-action: none;
 }
 
+/* Let taps reach the toolbar above; game input is keyboard/gamepad only. */
 .game_shell canvas {
   position: absolute;
   inset: 0;
+  pointer-events: none;
+}
+
+.menu_toggle_button {
+  position: absolute;
+  top: 2cqmin;
+  right: 2cqmin;
+  z-index: 101;
+  appearance: none;
+  box-shadow: 0 0.6cqmin 1.6cqmin rgb(2 6 23 / 35%);
+  border: 0.35cqmin solid #e2e8f0;
+  border-radius: 1.4cqmin;
+  background: rgb(15 23 42 / 88%);
+  padding: 0.9cqmin 1.6cqmin;
+  touch-action: manipulation;
+  color: #e2e8f0;
+  font:
+    700 2.4cqmin/1.1 ui-sans-serif,
+    system-ui,
+    sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #background_canvas {
@@ -41,28 +65,20 @@ body {
   z-index: 2;
 }
 
-.game_menu {
+/* Bottom-right, snug to viewport edge (small inset avoids clipping on rounded displays). */
+.game_toolbar {
   display: flex;
   position: absolute;
-  top: 2cqo;
+  bottom: 2cqmin;
   right: 2cqmin;
-  gap: 1cqmin;
-  z-index: 10;
+  align-items: center;
+  gap: 1.5cqmin;
+  z-index: 100;
   touch-action: manipulation;
+  pointer-events: auto;
 }
 
-.game_debug {
-  display: flex;
-  position: absolute;
-  top: 2cqmin;
-  left: 2cqmin;
-  gap: 1cqmin;
-  z-index: 20;
-  touch-action: manipulation;
-}
-
-.game_menu button,
-.game_debug button {
+.game_toolbar button {
   appearance: none;
   box-shadow: 0 0.6cqmin 1.6cqmin rgb(2 6 23 / 35%);
   border: 0.35cqmin solid #e2e8f0;
@@ -78,6 +94,79 @@ body {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.game_toolbar button[data-editor-only="true"] {
+  display: none;
+}
+
+html[data-editor="open"] .game_toolbar button[data-editor-only="true"] {
+  display: inline-block;
+}
+
+html[data-editor="open"] #restart_button {
+  display: none;
+}
+
+.game_menu {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 90;
+  pointer-events: auto;
+}
+
+.game_menu[hidden] {
+  display: none;
+}
+
+.game_menu_panel {
+  width: min(82cqw, 64cqh);
+  padding: 4cqw;
+  border: 0.4cqw solid rgb(148 163 184 / 80%);
+  border-radius: 3cqw;
+  background: linear-gradient(180deg, rgb(15 23 42 / 96%), rgb(2 6 23 / 96%));
+  box-shadow: 0 2cqh 5cqh rgb(2 6 23 / 55%);
+  color: #e2e8f0;
+}
+
+.game_menu_panel h1 {
+  margin: 0 0 1.2cqw;
+  font:
+    800 clamp(24px, 5cqw, 56px) / 1.05 ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
+.game_menu_panel p {
+  margin: 0 0 3cqw;
+  color: #cbd5e1;
+  font:
+    500 clamp(12px, 2.2cqw, 22px) / 1.35 ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
+.game_menu_actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5cqw;
+}
+
+.game_menu_actions button {
+  appearance: none;
+  border: 0.35cqw solid #e2e8f0;
+  border-radius: 1.6cqw;
+  background: rgb(15 23 42 / 78%);
+  color: #e2e8f0;
+  padding: 1.8cqw 2cqw;
+  font:
+    700 clamp(13px, 2.3cqw, 24px) / 1.05 ui-sans-serif,
+    system-ui,
+    sans-serif;
+  box-shadow: 0 0.8cqh 1.8cqh rgb(2 6 23 / 35%);
+  -webkit-tap-highlight-color: transparent;
 }
 
 canvas {

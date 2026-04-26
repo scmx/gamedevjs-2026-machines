@@ -23,5 +23,5 @@
     "lib": ["ESNext", "DOM", "DOM.Iterable"]
   },
   "include": ["*.js", "*.d.ts"],
-  "exclude": ["eslint.config.js", "node_modules", "zzfx.js"]
+  "exclude": ["eslint.config.js", "node_modules", "zzfx.js", "zzfxm.js"]
 }

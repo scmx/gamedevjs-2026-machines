@@ -2,7 +2,13 @@ import js from "@eslint/js"
 
 export default [
   {
-    ignores: ["node_modules/**", "case-study-*/**", "**/dist/**", "zzfx.js"],
+    ignores: [
+      "node_modules/**",
+      "case-study-*/**",
+      "**/dist/**",
+      "zzfx.js",
+      "zzfxm.js",
+    ],
   },
   js.configs.recommended,
   {
@@ -20,11 +26,13 @@ export default [
         HTMLCanvasElement: "readonly",
         innerHeight: "readonly",
         innerWidth: "readonly",
+        localStorage: "readonly",
         location: "readonly",
         navigator: "readonly",
         performance: "readonly",
         requestAnimationFrame: "readonly",
         setInterval: "readonly",
+        URLSearchParams: "readonly",
         window: "readonly",
       },
     },
