@@ -1,4 +1,6 @@
-# GameDevJS 2026 Machines
+# The Level Machine
+
+Build, break, and bend the level machine.
 
 Upcoming Vanilla JS side scroller game with Kenney's New Platformer Pack assets
 for Gamedev.js Jam 2026. https://scmx.itch.io/gamedevjs-2026

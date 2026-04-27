@@ -4,7 +4,7 @@
 DIST_ZIP := dist.zip
 KENNEY_ZIP := kenney.zip
 KENNEY_FILES := $(shell git ls-files -- 'kenney-new-platformer-pack/Sprites/*/Default/*.png')
-GAME_FILES := index.html game.css zzfx.js site.webmanifest $(wildcard game-*.js) $(wildcard editor-*.js) terrain-biome.js
+GAME_FILES := index.html game.css zzfx.js zzfxm.js site.webmanifest $(wildcard data/*.json) $(wildcard game-*.js) $(wildcard editor-*.js) $(wildcard terrain-*.js) project-storage.js
 
 index html: index.html
 
