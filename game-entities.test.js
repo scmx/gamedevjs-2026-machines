@@ -2,7 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import { trySwitches, updateFallingObjects } from "./game-entities.js"
-import { GameActor, TILE_SIZE, createGameModel } from "./game-state.js"
+import { TILE_SIZE, createGameModel, createPlayer } from "./game-state.js"
 
 test("color blocks stay put when unsupported and still toggle on switches", () => {
   /** @type {GameLevelObject & { vy?: number }} */
@@ -48,13 +48,7 @@ test("color blocks stay put when unsupported and still toggle on switches", () =
   assert.equal(block.y, 5)
   assert.equal(block.vy, undefined)
 
-  const player = new GameActor()
-  player.pos.x = 6 * TILE_SIZE
-  player.pos.y = 4.5 * TILE_SIZE
-  player.size.x = TILE_SIZE
-  player.size.y = TILE_SIZE
-  player.velocity.x = 0
-  player.velocity.y = 0
+  const player = createPlayer(0, 6 * TILE_SIZE, 5 * TILE_SIZE, "#fff", "beige")
   model.players.push(player)
 
   trySwitches(model)
