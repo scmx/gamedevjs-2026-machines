@@ -18,9 +18,12 @@ export default [
       globals: {
         clearInterval: "readonly",
         console: "readonly",
+        Blob: "readonly",
         devicePixelRatio: "readonly",
         document: "readonly",
         Element: "readonly",
+        fetch: "readonly",
+        HTMLElement: "readonly",
         globalThis: "readonly",
         addEventListener: "readonly",
         HTMLCanvasElement: "readonly",

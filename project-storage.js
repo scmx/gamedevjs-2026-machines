@@ -139,7 +139,7 @@ export function serializeProjectLevels(model) {
     seed: level.generatedFrom?.seed ?? 0,
     v: 1,
     levelVersion: level.generatedFrom?.version ?? 0,
-    music: level.generatedFrom?.music,
+    ...(level.generatedFrom?.music ? { music: level.generatedFrom.music } : {}),
     ops: level.generatedFrom?.ops?.map(encodeOp) ?? [],
   }))
 }
@@ -153,7 +153,7 @@ export function normalizeProjectLevels(records) {
     seed: r.seed ?? 0,
     v: r.v ?? 1,
     levelVersion: r.levelVersion ?? 1,
-    music: r.music,
+    ...(r.music ? { music: r.music } : {}),
     ops: Array.isArray(r.ops) ? r.ops : [],
   }))
 }

@@ -1,4 +1,4 @@
-import { exportEditLogJson, applyEditInstructions } from "./editor-edit-log.js"
+import { applyEditInstructions } from "./editor-edit-log.js"
 import { randomLevelSeed } from "./editor-terrain.js"
 import { setInputState } from "./game-controller.js"
 import {
@@ -77,9 +77,9 @@ export function syncMainMenuOverlay(model) {
 export function syncEditorRootAttribute(model) {
   const root = document.documentElement
   if (model.editorMode) {
-    root.dataset.editor = "open"
+    root.dataset["editor"] = "open"
   } else {
-    delete root.dataset.editor
+    delete root.dataset["editor"]
   }
 }
 
@@ -114,7 +114,7 @@ export function syncEditorToolbarVisibility(model) {
  * @returns {boolean}
  */
 function isFileSystemAccessApiAvailable() {
-  return globalThis.isSecureContext && typeof globalThis.showDirectoryPicker === "function"
+  return window.isSecureContext && typeof window.showDirectoryPicker === "function"
 }
 
 /** Max delay between pointer ups to count as a double-tap (mouse or touch). */
@@ -199,7 +199,12 @@ export function bindSaveExportButton(model) {
         .catch((err) => console.error(err))
       return
     }
-    void mountThenExportProject(model, btn).catch((err) => console.error(err))
+    syncDownloadLevelJson(
+      json,
+      new Blob([json], { type: "application/json" }),
+      PROJECT_FILE_NAME,
+      btn,
+    )
   })
 }
 
@@ -286,6 +291,9 @@ export function bindRestartButton() {
   })
 }
 
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
 export function bindMenuButton(model) {
   const btn = document.querySelector("#menu_button")
   if (!(btn instanceof globalThis.HTMLButtonElement)) return
@@ -364,6 +372,9 @@ export function bindMainMenuButtons(model) {
   }
 }
 
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
 export function bindMountButton(model) {
   const btn = document.querySelector("#mount_button")
   if (!(btn instanceof globalThis.HTMLButtonElement)) return
@@ -379,6 +390,9 @@ export function bindMountButton(model) {
   })
 }
 
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
 export function bindImportButton(model) {
   const btn = document.querySelector("#import_button")
   if (!(btn instanceof globalThis.HTMLButtonElement)) return
@@ -393,6 +407,9 @@ export function bindImportButton(model) {
   })
 }
 
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
 export function bindAutoSaveButton(model) {
   const btn = document.querySelector("#autosave_button")
   if (!(btn instanceof globalThis.HTMLButtonElement)) return
@@ -408,6 +425,9 @@ export function bindAutoSaveButton(model) {
   })
 }
 
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
 export function bindMusicButton(model) {
   const btn = document.querySelector("#music_button")
   if (!(btn instanceof globalThis.HTMLButtonElement)) return
@@ -420,16 +440,20 @@ export function bindMusicButton(model) {
   btn.addEventListener("pointerup", (event) => {
     if (event.button > 0) return
     event.preventDefault()
-    cycleLevelMusicMode(model.levels[0])
+    const level = model.levels[0]
+    if (level) cycleLevelMusicMode(level)
     syncLabel()
   })
 }
 
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
 export async function mountProjectFolder(model) {
   if (!globalThis.isSecureContext) {
     throw new Error("File System Access API requires HTTPS or localhost")
   }
-  const picker = globalThis.showDirectoryPicker
+  const picker = window.showDirectoryPicker
   if (typeof picker !== "function") throw new Error("File System Access API unavailable")
   const dir = await picker({ mode: "readwrite" })
   model.projectDataDirHandle = dir
@@ -448,7 +472,7 @@ export async function mountThenExportProject(model, btn) {
   if (!globalThis.isSecureContext) {
     throw new Error("File System Access API requires HTTPS or localhost")
   }
-  const picker = globalThis.showDirectoryPicker
+  const picker = window.showDirectoryPicker
   if (typeof picker !== "function") throw new Error("File System Access API unavailable")
   const dir = await picker({ mode: "readwrite" })
   model.projectDataDirHandle = dir
@@ -460,6 +484,9 @@ export async function mountThenExportProject(model, btn) {
   }, 1200)
 }
 
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
 export async function importProjectFromFolder(model) {
   if (!globalThis.isSecureContext) {
     throw new Error("File System Access API requires HTTPS or localhost")
@@ -467,6 +494,9 @@ export async function importProjectFromFolder(model) {
   await syncProjectLevelsFromFolder(model)
 }
 
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
 export async function exportProjectToFolder(model) {
   const dir = model.projectDataDirHandle
   if (!dir) throw new Error("No data folder mounted")
@@ -476,6 +506,9 @@ export async function exportProjectToFolder(model) {
   await writable.close()
 }
 
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
 export async function syncProjectLevelsFromFolder(model) {
   const dir = model.projectDataDirHandle
   if (!dir) return

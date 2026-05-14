@@ -677,9 +677,11 @@ function buildHazardObjects(terrainRows, occupiedTiles, rng) {
  * @returns {GameLevelObject[]}
  */
 function buildInteractiveBlockObjects(terrainRows, occupiedTiles, rng) {
+  /** @type {{ kind: string; sprite: string; solid?: boolean }[]} */
   const interactive = EDITOR_BLOCK_VARIANTS.filter((v) =>
     INTERACTIVE_BLOCK_KINDS.has(v.kind),
   )
+  /** @type {{ kind: string; sprite: string; solid?: boolean }[]} */
   const bricks = EDITOR_BRICK_VARIANTS.filter(
     (v) => typeof v.sprite === "string" && v.kind !== "hill",
   )
@@ -697,6 +699,7 @@ function buildInteractiveBlockObjects(terrainRows, occupiedTiles, rng) {
       const tkey = `${x},${standY}`
       if (occupiedTiles.has(tkey)) continue
 
+      /** @type {{ kind: string; sprite: string; solid?: boolean } | undefined} */
       let variant
       if (rng() < 0.62 && interactive.length > 0) {
         variant = interactive[Math.floor(rng() * interactive.length)]

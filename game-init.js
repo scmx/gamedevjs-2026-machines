@@ -41,6 +41,11 @@ export default function init(back, tiles, objects) {
   })
 }
 
+/**
+ * @param {HTMLCanvasElement} back
+ * @param {HTMLCanvasElement} tiles
+ * @param {HTMLCanvasElement} objects
+ */
 async function boot(back, tiles, objects) {
   installZzfxAudioUnlockListeners()
   const levels = await loadInitialLevels()
@@ -49,12 +54,13 @@ async function boot(back, tiles, objects) {
   if (prefs) applySkinPrefsToPlayers(model.players, prefs)
   applySavedProgress(model, prefs)
   syncAudioLevelsToModel(model)
-  let saveTimer = 0
+  /** @type {ReturnType<typeof globalThis.setTimeout> | null} */
+  let saveTimer = null
   model.projectAutoSave = false
   model.projectDataDirHandle = null
   model.onProjectDirty = () => {
     if (!model.projectAutoSave || !model.projectDataDirHandle) return
-    globalThis.clearTimeout(saveTimer)
+    if (saveTimer) globalThis.clearTimeout(saveTimer)
     saveTimer = globalThis.setTimeout(() => {
       void exportProjectToFolder(model).catch((err) => console.error(err))
     }, 200)
@@ -89,7 +95,8 @@ function applySavedProgress(model, prefs) {
   if (model.levels.length > 1 && levelIndex > 0) {
     const steps = levelIndex % model.levels.length
     for (let i = 0; i < steps; i++) {
-      model.levels.push(model.levels.shift())
+      const first = model.levels.shift()
+      if (first) model.levels.push(first)
     }
   }
   model.currentLevelIndex = levelIndex % Math.max(model.levels.length, 1)

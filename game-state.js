@@ -202,6 +202,12 @@ export class GameModel {
     this._fishSpawnAccumulator = 0
     /** Ordered editor ops on top of the procedural seed; downloadable as JSON. @type {object[]} */
     this.editLog = []
+    /** @type {boolean} */
+    this.projectAutoSave = false
+    /** @type {FileSystemDirectoryHandle | null} */
+    this.projectDataDirHandle = null
+    /** @type {(() => void) | null} */
+    this.onProjectDirty = null
     /** @type {number} */
     this.currentLevelIndex = 0
     /** @type {number} Count of unlocked locks from the left. */

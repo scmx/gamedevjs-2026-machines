@@ -3,7 +3,7 @@ type GameVectorLike = {
   y: number
 }
 
-type GameKeyboard = boolean[]
+type GameKeyboard = Record<string, boolean>
 
 type GameInput = {
   down: boolean
@@ -47,6 +47,7 @@ type GameLevelGeneratedFrom = {
   version: number
   seed: number
   music?: "melody" | "ambient" | "arcade"
+  ops?: import("./editor-edit-log.js").EditLogOp[]
 }
 
 type GameLevelObject = {
@@ -83,7 +84,7 @@ type GameLevel = {
   layers: {
     terrain: string[]
     /** Same width/height as terrain; one char per tile biome id (space = air). */
-    terrainVariant?: string[]
+    terrainVariant: string[]
   }
   objects: GameLevelObject[]
   generatedFrom: GameLevelGeneratedFrom
@@ -118,4 +119,7 @@ type GameActorData = {
 
 interface Window {
   MODEL?: import("./game-state.js").GameModel
+  showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle>
 }
+
+declare var MODEL: import("./game-state.js").GameModel | undefined

@@ -1005,9 +1005,11 @@ export function cycleEditorLevel(model, direction) {
   }))
 
   if (direction > 0) {
-    levels.push(levels.shift())
+    const first = levels.shift()
+    if (first) levels.push(first)
   } else {
-    levels.unshift(levels.pop())
+    const last = levels.pop()
+    if (last) levels.unshift(last)
   }
 
   const nextLevel = levels[0]

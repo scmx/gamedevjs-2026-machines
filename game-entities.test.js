@@ -2,9 +2,10 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import { trySwitches, updateFallingObjects } from "./game-entities.js"
-import { TILE_SIZE } from "./game-state.js"
+import { GameActor, TILE_SIZE, createGameModel } from "./game-state.js"
 
 test("color blocks stay put when unsupported and still toggle on switches", () => {
+  /** @type {GameLevelObject & { vy?: number }} */
   const block = {
     kind: "color_block",
     x: 5,
@@ -15,6 +16,7 @@ test("color blocks stay put when unsupported and still toggle on switches", () =
     sprite: "block_blue",
     collected: false,
   }
+  /** @type {GameLevelObject} */
   const sw = {
     kind: "switch",
     x: 6,
@@ -25,28 +27,35 @@ test("color blocks stay put when unsupported and still toggle on switches", () =
     sprite: "switch_blue",
     collected: false,
   }
-  const model = {
-    elapsed: 0,
-    players: [],
+  const model = createGameModel({
     levels: [
       {
+        id: "test",
+        name: "test",
+        width: 10,
+        height: 12,
         objects: [block, sw],
         layers: {
           terrain: Array.from({ length: 12 }, () => "0000000000"),
+          terrainVariant: Array.from({ length: 12 }, () => "          "),
         },
+        generatedFrom: { version: 1, seed: 0 },
       },
     ],
-  }
+  })
 
   updateFallingObjects(model, 1 / 60)
   assert.equal(block.y, 5)
   assert.equal(block.vy, undefined)
 
-  model.players.push({
-    pos: { x: 6 * TILE_SIZE, y: 4.5 * TILE_SIZE },
-    size: { x: TILE_SIZE, y: TILE_SIZE },
-    velocity: { x: 0, y: 0 },
-  })
+  const player = new GameActor()
+  player.pos.x = 6 * TILE_SIZE
+  player.pos.y = 4.5 * TILE_SIZE
+  player.size.x = TILE_SIZE
+  player.size.y = TILE_SIZE
+  player.velocity.x = 0
+  player.velocity.y = 0
+  model.players.push(player)
 
   trySwitches(model)
   assert.equal(block.solid, false)

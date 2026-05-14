@@ -1,4 +1,3 @@
-/* eslint-disable no-sparse-arrays -- ZzFX presets; holes become undefined like zzfx micro */
 /**
  * ZzFX presets (global `zzfx` / `zzfxX` from zzfx.js). No-ops if unavailable.
  *
@@ -13,6 +12,7 @@ function getZzfxAudioContext() {
 }
 
 let unlockListenersInstalled = false
+/** @type {(AudioBufferSourceNode & { __gainNode?: GainNode }) | undefined} */
 let musicNode = undefined
 let musicMode = 0
 let currentMusicGain = 0.36
@@ -92,7 +92,8 @@ export function cycleLevelMusicMode(level) {
   if (level.generatedFrom) level.generatedFrom.music = next
   else level.generatedFrom = { version: 0, seed: 0, music: next }
   musicMode = MUSIC_MODE_BY_INDEX.indexOf(next)
-  globalThis.MODEL?.onProjectDirty?.()
+  const model = window.MODEL
+  model?.onProjectDirty?.()
   stopProceduralMusic()
   void resumeZzfxAudio().then(() => startProceduralMusic())
   return next
@@ -102,8 +103,8 @@ export function cycleLevelMusicMode(level) {
  * @param {GameLevel | undefined} level
  */
 export function syncMusicModeToLevel(level) {
-  musicMode = MUSIC_MODE_BY_INDEX.indexOf(getLevelMusicMode(level))
-  if (musicMode < 0) musicMode = 0
+  const idx = MUSIC_MODE_BY_INDEX.indexOf(getLevelMusicMode(level))
+  musicMode = /** @type {0 | 1 | 2} */ (idx < 0 ? 0 : idx)
 }
 
 /**
@@ -161,6 +162,22 @@ export function resumeZzfxAudioIfGamepadActive(gamepads) {
 let musicStarted = false
 let sfxGain = 1
 
+/**
+ * @param {{
+ *   type?: OscillatorType
+ *   frequency?: number
+ *   duration?: number
+ *   attack?: number
+ *   decay?: number
+ *   sustain?: number
+ *   release?: number
+ *   gain?: number
+ *   detune?: number
+ *   slide?: number
+ *   noise?: number
+ *   distortion?: number
+ * }} [options]
+ */
 function playTone({
   type = "sine",
   frequency = 440,
@@ -271,6 +288,10 @@ export function playSoundPlayerHurt() {
 }
 
 /** @returns {AudioBuffer | undefined} */
+/**
+ * @param {0 | 1 | 2} mode
+ * @returns {AudioBuffer | undefined}
+ */
 function buildMusicBuffer(mode) {
   const ctx = getZzfxAudioContext()
   if (!ctx) return undefined
@@ -318,6 +339,7 @@ function buildMusicBuffer(mode) {
     },
   ]
   const m = modes[mode] ?? modes[0]
+  if (!m) return undefined
   const modeStep = m.step
 
   for (let i = 0; i < left.length; i++) {
@@ -344,12 +366,14 @@ function buildMusicBuffer(mode) {
   return buffer
 }
 
+/** @param {number} beat @param {number} attack @param {number} release */
 function smoothEnvelope(beat, attack, release) {
   const a = Math.min(1, Math.max(0, beat / attack))
   const r = Math.min(1, Math.max(0, (1 - beat) / release))
   return easeInOut(a * r)
 }
 
+/** @param {number} t @param {number} rate @param {number} gain */
 function softPulse(t, rate, gain) {
   const phase = (t * rate) % 1
   const body = Math.sin(t * 2 * Math.PI * rate) * 0.35
@@ -357,6 +381,12 @@ function softPulse(t, rate, gain) {
   return (body + click) * gain * smoothEnvelope(phase, 0.14, 0.24)
 }
 
+/**
+ * @param {number} t
+ * @param {number} frequency
+ * @param {"sine" | "triangle" | "sawtooth"} type
+ * @param {number} [warmth]
+ */
 function shapedVoice(t, frequency, type, warmth = 0.5) {
   const phase = t * 2 * Math.PI * frequency
   const s = Math.sin(phase)
@@ -366,10 +396,12 @@ function shapedVoice(t, frequency, type, warmth = 0.5) {
   return saw * warmth + s * (1 - warmth)
 }
 
+/** @param {number} v */
 function easeInOut(v) {
   return v * v * (3 - 2 * v)
 }
 
+/** @param {number} v */
 function clampSample(v) {
   return Math.max(-0.85, Math.min(0.85, v))
 }
@@ -382,8 +414,9 @@ export function startProceduralMusic() {
   if (musicStarted) return
   const ctx = getZzfxAudioContext()
   if (!ctx || ctx.state !== "running") return
-  syncMusicModeToLevel(/** @type {GameLevel | undefined} */ (globalThis.MODEL?.levels?.[0]))
-  const buffer = buildMusicBuffer(musicMode)
+  const model = window.MODEL
+  syncMusicModeToLevel(model?.levels?.[0])
+  const buffer = buildMusicBuffer(/** @type {0 | 1 | 2} */ (musicMode))
   if (!buffer) return
   stopProceduralMusic()
   const source = ctx.createBufferSource()

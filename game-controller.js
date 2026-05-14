@@ -1,6 +1,5 @@
 const GAMEPAD_AXIS_DEADZONE = 0.25
 const TRIGGER_PRESS = 0.45
-const ACTIONS = ["up", "left", "down", "right", "action", "interact"]
 const KEYS = {
   p1: {
     up: "ArrowUp",
@@ -120,7 +119,7 @@ export function getInputs(
   const p2 = editorMode
     ? EMPTY_INPUT
     : mergeInputs(
-        getPlayerTwoKeyboardInput(keyboard, editorMode),
+        getPlayerTwoKeyboardInput(keyboard),
         getConnectedGamepadInput(gamepads, 1, editorMode),
       )
   p1.menuToggle = p1.menuToggle || menuToggle
@@ -166,7 +165,7 @@ function freshGamepad(gamepad) {
  * @param {number} durationMs
  */
 function playGamepadHapticPulse(gamepad, durationMs) {
-  const hs = gamepad.hapticActuators
+  const hs = /** @type {Gamepad & { hapticActuators?: { pulse?: (value: number, duration: number) => unknown }[] }} */ (gamepad).hapticActuators
   if (!hs?.length) return
   for (const h of hs) {
     if (h && typeof h.pulse === "function") {
@@ -261,6 +260,9 @@ function getPlayerOneKeyboardInput(keyboard, editorMode) {
     editorToggle: Boolean(keyboard[EDITOR_KEYS.toggle]),
     editorPlace: false,
     editorRemove: false,
+    editorUndo: false,
+    editorLevelNext: false,
+    editorLevelPrev: false,
     editorCycleNext: false,
     editorCyclePrev: false,
     editorCycleColor: false,
