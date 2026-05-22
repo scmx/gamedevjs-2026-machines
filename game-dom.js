@@ -7,6 +7,8 @@ import {
   syncAudioLevelsToModel,
 } from "./game-sounds.js"
 import { generateLevel } from "./editor-terrain.js"
+import { cycleEditorLevel } from "./game-update.js"
+import { syncPlayerCount } from "./game-state.js"
 import {
   decodeOp,
   normalizeProjectLevels,
@@ -63,9 +65,61 @@ export function syncMainMenuOverlay(model) {
   if (!(menu instanceof HTMLElement)) return
   menu.hidden = !model.menuOpen
 
+  const title = document.querySelector("#menu_title")
+  if (title instanceof HTMLElement) {
+    title.textContent = model.editorMode ? "Editor Menu" : "Main Menu"
+  }
+
   const button = document.querySelector("#menu_button")
   if (button instanceof globalThis.HTMLButtonElement) {
-    button.textContent = model.editorMode ? "Close" : "Menu"
+    button.textContent = "Menu"
+  }
+
+  const resume = document.querySelector("#menu_resume_button")
+  const edit = document.querySelector("#menu_edit_button")
+  const editor = document.querySelector("#menu_editor_button")
+  const player = document.querySelector("#menu_player_button")
+  if (player instanceof globalThis.HTMLButtonElement) {
+    player.textContent = model.playerMode === 2 ? "2-player" : "1-player"
+  }
+
+  if (resume instanceof globalThis.HTMLButtonElement) {
+    resume.textContent = model.editorMode ? "Play" : "Resume"
+    resume.hidden = model.editorMode
+  }
+  if (edit instanceof HTMLElement) edit.hidden = !model.editorMode
+  if (editor instanceof HTMLElement) editor.hidden = model.editorMode
+
+  const levelPrev = document.querySelector("#menu_level_prev_button")
+  const levelNext = document.querySelector("#menu_level_next_button")
+  const editorControlsVisible = model.editorMode
+  if (levelPrev instanceof HTMLElement) levelPrev.hidden = !editorControlsVisible
+  if (levelNext instanceof HTMLElement) levelNext.hidden = !editorControlsVisible
+
+  syncMenuSelection(model)
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ */
+function syncMenuSelection(model) {
+  const selected = model.menuSelection
+  const map = {
+    resume: ["menu_resume_button"],
+    edit: ["menu_edit_button"],
+    editor: ["menu_editor_button"],
+    level: ["menu_level_prev_button", "menu_level_next_button"],
+    player: ["menu_player_button"],
+    music: ["menu_music_button"],
+    sfx: ["menu_sfx_button"],
+    restart: ["menu_restart_button"],
+  }
+  for (const [key, ids] of Object.entries(map)) {
+    for (const id of ids) {
+      const btn = document.querySelector(`#${id}`)
+      if (!(btn instanceof globalThis.HTMLButtonElement)) continue
+      btn.dataset["selected"] = selected === key ? "true" : "false"
+    }
   }
 }
 
@@ -114,7 +168,9 @@ export function syncEditorToolbarVisibility(model) {
  * @returns {boolean}
  */
 function isFileSystemAccessApiAvailable() {
-  return window.isSecureContext && typeof window.showDirectoryPicker === "function"
+  return (
+    window.isSecureContext && typeof window.showDirectoryPicker === "function"
+  )
 }
 
 /** Max delay between pointer ups to count as a double-tap (mouse or touch). */
@@ -300,8 +356,13 @@ export function bindMenuButton(model) {
   btn.addEventListener("pointerup", (event) => {
     if (event.button > 0) return
     event.preventDefault()
-    model.menuOpen = true
-    model.editorMode = false
+    if (model.editorMode) {
+      model.menuOpen = true
+      model.menuSelection = "level"
+      return
+    }
+    model.menuOpen = !model.menuOpen
+    if (model.menuOpen) model.menuSelection = "resume"
   })
 }
 
@@ -310,13 +371,26 @@ export function bindMenuButton(model) {
  */
 export function bindMainMenuButtons(model) {
   const resume = document.querySelector("#menu_resume_button")
+  const edit = document.querySelector("#menu_edit_button")
   const editor = document.querySelector("#menu_editor_button")
+  const levelPrev = document.querySelector("#menu_level_prev_button")
+  const levelNext = document.querySelector("#menu_level_next_button")
+  const player = document.querySelector("#menu_player_button")
   const music = document.querySelector("#menu_music_button")
   const sfx = document.querySelector("#menu_sfx_button")
   const restart = document.querySelector("#menu_restart_button")
 
   if (resume instanceof globalThis.HTMLButtonElement) {
     resume.addEventListener("pointerup", (event) => {
+      if (event.button > 0) return
+      event.preventDefault()
+      model.menuOpen = false
+      model.editorMode = false
+    })
+  }
+
+  if (edit instanceof globalThis.HTMLButtonElement) {
+    edit.addEventListener("pointerup", (event) => {
       if (event.button > 0) return
       event.preventDefault()
       model.menuOpen = false
@@ -327,8 +401,43 @@ export function bindMainMenuButtons(model) {
     editor.addEventListener("pointerup", (event) => {
       if (event.button > 0) return
       event.preventDefault()
-      model.menuOpen = false
       model.editorMode = true
+      model.menuOpen = false
+      model.menuSelection = "level"
+    })
+  }
+
+  if (levelPrev instanceof globalThis.HTMLButtonElement) {
+    levelPrev.addEventListener("pointerup", (event) => {
+      if (event.button > 0) return
+      event.preventDefault()
+      cycleEditorLevel(model, -1)
+    })
+  }
+  if (levelNext instanceof globalThis.HTMLButtonElement) {
+    levelNext.addEventListener("pointerup", (event) => {
+      if (event.button > 0) return
+      event.preventDefault()
+      cycleEditorLevel(model, 1)
+    })
+  }
+
+  const syncPlayerLabel = () => {
+    if (!(player instanceof globalThis.HTMLButtonElement)) return
+    player.textContent = model.playerMode === 2 ? "2-player" : "1-player"
+  }
+  syncPlayerLabel()
+
+  if (player instanceof globalThis.HTMLButtonElement) {
+    console.log(player)
+    player.addEventListener("pointerup", (event) => {
+      console.log(event)
+      if (event.button > 0) return
+      event.preventDefault()
+      model.playerMode =
+        model.playerMode === null ? 1 : model.playerMode === 1 ? 2 : 1
+      syncPlayerCount(model, model.playerMode === 2 ? 2 : 1)
+      syncPlayerLabel()
     })
   }
 
@@ -347,7 +456,9 @@ export function bindMainMenuButtons(model) {
     music.addEventListener("pointerup", (event) => {
       if (event.button > 0) return
       event.preventDefault()
-      model.musicVolume = /** @type {0 | 1 | 2 | 3} */ ((model.musicVolume + 1) % 4)
+      model.musicVolume = /** @type {0 | 1 | 2 | 3} */ (
+        (model.musicVolume + 1) % 4
+      )
       syncAudioLevelsToModel(model)
       syncAudioLabels()
     })
@@ -454,7 +565,8 @@ export async function mountProjectFolder(model) {
     throw new Error("File System Access API requires HTTPS or localhost")
   }
   const picker = window.showDirectoryPicker
-  if (typeof picker !== "function") throw new Error("File System Access API unavailable")
+  if (typeof picker !== "function")
+    throw new Error("File System Access API unavailable")
   const dir = await picker({ mode: "readwrite" })
   model.projectDataDirHandle = dir
   model.projectAutoSave = true
@@ -473,7 +585,8 @@ export async function mountThenExportProject(model, btn) {
     throw new Error("File System Access API requires HTTPS or localhost")
   }
   const picker = window.showDirectoryPicker
-  if (typeof picker !== "function") throw new Error("File System Access API unavailable")
+  if (typeof picker !== "function")
+    throw new Error("File System Access API unavailable")
   const dir = await picker({ mode: "readwrite" })
   model.projectDataDirHandle = dir
   model.projectAutoSave = true
@@ -500,7 +613,9 @@ export async function importProjectFromFolder(model) {
 export async function exportProjectToFolder(model) {
   const dir = model.projectDataDirHandle
   if (!dir) throw new Error("No data folder mounted")
-  const fileHandle = await dir.getFileHandle(PROJECT_FILE_NAME, { create: true })
+  const fileHandle = await dir.getFileHandle(PROJECT_FILE_NAME, {
+    create: true,
+  })
   const writable = await fileHandle.createWritable()
   await writable.write(formatProjectJson(serializeProjectLevels(model)))
   await writable.close()

@@ -133,6 +133,7 @@ const EMPTY_EDITOR_INPUT = Object.freeze({
   editorCycleNext: false,
   editorCyclePrev: false,
   editorCycleColor: false,
+  editorCycleAltColor: false,
   editorCursorUp: false,
   editorCursorDown: false,
   editorCursorLeft: false,
@@ -218,6 +219,9 @@ function updateEditorPlayer(model, input, playerIndex) {
     input.editorCyclePrev && !model._editorPrevCyclePrev[pi],
   )
   const colorEdge = Boolean(input.editorCycleColor && !model._editorPrevColor[pi])
+  const altEdge = Boolean(
+    input.editorCycleAltColor && !model._editorPrevAltColor[pi],
+  )
 
   model._editorPrevPlace[pi] = Boolean(input.editorPlace)
   model._editorPrevRemove[pi] = Boolean(input.editorRemove)
@@ -227,6 +231,7 @@ function updateEditorPlayer(model, input, playerIndex) {
   model._editorPrevCycleNext[pi] = Boolean(input.editorCycleNext)
   model._editorPrevCyclePrev[pi] = Boolean(input.editorCyclePrev)
   model._editorPrevColor[pi] = Boolean(input.editorCycleColor)
+  model._editorPrevAltColor[pi] = Boolean(input.editorCycleAltColor)
 
   if (nextEdge) {
     model.editorThingIndex[pi] =
@@ -286,8 +291,6 @@ function updateEditorPlayer(model, input, playerIndex) {
     } else if (thing.id === "hazard") {
       model.editorHazardVariantIndex[pi] =
         (model.editorHazardVariantIndex[pi] + 1) % EDITOR_HAZARD_VARIANTS.length
-    } else if (thing.id === "spikes") {
-      model.editorSpikeUpsideDown[pi] = !model.editorSpikeUpsideDown[pi]
     } else if (thing.id === "brick") {
       model.editorBrickVariantIndex[pi] =
         (model.editorBrickVariantIndex[pi] + 1) % EDITOR_BRICK_VARIANTS.length
@@ -295,6 +298,10 @@ function updateEditorPlayer(model, input, playerIndex) {
       model.editorCoinVariantIndex[pi] =
         (model.editorCoinVariantIndex[pi] + 1) % EDITOR_COIN_VARIANTS.length
     }
+  }
+
+  if (altEdge && thing) {
+    toggleAlternatePlacementMode(model, pi, thing)
   }
 
   const moveEdgeU = Boolean(
@@ -347,6 +354,31 @@ function updateEditorPlayer(model, input, playerIndex) {
 }
 
 /**
+ * @param {import('./game-state.js').GameModel} model
+ * @param {number} pi
+ * @param {import('./editor-placeables.js').EditorPlaceable} thing
+ */
+function toggleAlternatePlacementMode(model, pi, thing) {
+  if (thing.id === "hazard") {
+    const v =
+      EDITOR_HAZARD_VARIANTS[model.editorHazardVariantIndex[pi] ?? 0] ??
+      EDITOR_HAZARD_VARIANTS[0]
+    if (v?.kind === "saw") {
+      model.editorSawSpinDir[pi] =
+        model.editorSawSpinDir[pi] === 1 ? -1 : 1
+    } else if (v?.kind === "spikes") {
+      model.editorSpikeOrientationIndex[pi] =
+        (model.editorSpikeOrientationIndex[pi] + 1) % 4
+    }
+    return
+  }
+
+  if (thing.id === "conveyor") {
+    model.editorConveyorDirIndex[pi] = (model.editorConveyorDirIndex[pi] + 1) % 2
+  }
+}
+
+/**
  * World-space center of editor cursor tile(s) (for camera).
  *
  * @param {import('./game-state.js').GameModel} model
@@ -357,20 +389,12 @@ export function getEditorFocusWorld(model) {
   let ex = 0
   let ey = 0
   let n = 0
-  let mx = 0
-  let my = 0
-  let nm = 0
   for (let i = 0; i < count; i++) {
     const cx = (model.editorTileX[i] + 0.5) * TILE_SIZE
     const cy = (model.editorTileY[i] + 0.5) * TILE_SIZE
     ex += cx
     ey += cy
     n++
-    if (model.editorCursorMovedThisFrame[i]) {
-      mx += cx
-      my += cy
-      nm++
-    }
   }
 
   if (n === 0) {
@@ -380,9 +404,6 @@ export function getEditorFocusWorld(model) {
     }
   }
 
-  if (nm > 0) {
-    return { x: mx / nm, y: my / nm }
-  }
   return { x: ex / n, y: ey / n }
 }
 
@@ -486,17 +507,27 @@ function placeSelectedThing(model, pi) {
     return
   }
 
-  if (thing.id === "spikes") {
-    pushObjectAndLog(model, {
-      kind: "spikes",
+  if (thing.id === "hazard") {
+    const variant =
+      EDITOR_HAZARD_VARIANTS[model.editorHazardVariantIndex[pi] ?? 0] ??
+      EDITOR_HAZARD_VARIANTS[0]
+    if (!variant) return
+    const obj = {
+      kind: variant.kind,
       x: tx,
       y: ty,
       width: 1,
       height: 1,
-      sprite: "block_spikes",
+      sprite: variant.sprite,
       collected: false,
-      upsideDown: model.editorSpikeUpsideDown[pi] === true,
-    })
+      solid: false,
+    }
+    if (variant.kind === "saw") {
+      obj.spinDir = model.editorSawSpinDir[pi] ?? 1
+    } else if (variant.kind === "spikes") {
+      obj.orientation = model.editorSpikeOrientationIndex[pi] ?? 0
+    }
+    pushObjectAndLog(model, obj)
     return
   }
 
@@ -593,6 +624,9 @@ function placeSelectedThing(model, pi) {
       solid: false,
     }
     if (v.state !== undefined) obj.state = v.state
+    if (v.kind === "saw") {
+      obj.spinDir = model.editorSawSpinDir[pi] ?? 1
+    }
     pushObjectAndLog(model, obj)
     return
   }

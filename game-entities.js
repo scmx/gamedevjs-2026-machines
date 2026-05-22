@@ -444,16 +444,30 @@ export function applySpikesAndSaws(model) {
     for (const player of model.players) {
       if (!overlap(player, object)) continue
       const b = getObjectBounds(object)
-      const playerBottom = player.pos.y + player.size.y
-      const halfwayY = b.top + b.height * 0.5
-      const bounce =
-        (object.kind === "spikes" ||
-          object.kind === "cactus" ||
-          object.sprite === "block_spikes") &&
+      const impulse = 520 * 0.48
+      if (object.kind === "spikes" || object.sprite === "block_spikes") {
+        const orientation = Number(object.orientation ?? 0) % 4
+        if (orientation === 0) {
+          player.velocity.y = -impulse
+          player.pos.y = Math.min(player.pos.y, b.top - player.size.y)
+        } else if (orientation === 1) {
+          player.velocity.y = impulse
+          player.pos.y = Math.max(player.pos.y, b.top + b.height)
+        } else if (orientation === 2) {
+          player.velocity.x = -impulse
+          player.pos.x = Math.min(player.pos.x, b.left - player.size.x)
+        } else if (orientation === 3) {
+          player.velocity.x = impulse
+          player.pos.x = Math.max(player.pos.x, b.left + b.width)
+        } else {
+          player.velocity.y = -impulse
+        }
+      } else if (
+        object.kind === "cactus" &&
         player.velocity.y > 0 &&
-        playerBottom >= halfwayY
-      if (bounce) {
-        player.velocity.y = -520 * 0.48
+        player.pos.y + player.size.y >= b.top + b.height * 0.5
+      ) {
+        player.velocity.y = -impulse
       }
       applyDamage(player, 1)
     }

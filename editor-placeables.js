@@ -4,7 +4,7 @@
  */
 
 /** Expected tool count (stale caches served a shorter list; keep in sync). */
-export const EDITOR_PLACEABLE_COUNT = 22
+export const EDITOR_PLACEABLE_COUNT = 21
 
 /** @type {readonly EditorPlaceable[]} */
 export const EDITOR_PLACEABLES = Object.freeze([
@@ -25,7 +25,6 @@ export const EDITOR_PLACEABLES = Object.freeze([
   { id: "flag", label: "Flag", colors: true },
   { id: "conveyor", label: "Conveyor", variants: true },
   { id: "hazard", label: "Hazard", variants: true },
-  { id: "spikes", label: "Spikes" },
   { id: "brick", label: "Brick", variants: true },
   { id: "switch", label: "Switch", colors: true },
   { id: "special_block", label: "Block", variants: true },

@@ -32,7 +32,7 @@ const EDITOR_KEYS = {
   cycleNext: "KeyC",
   cyclePrev: "KeyZ",
   cycleColor: "KeyX",
-  cycleAltColor: "KeyQ",
+  cycleAltColor: "KeyY",
   cursorUp: "ArrowUp",
   cursorDown: "ArrowDown",
   cursorLeft: "ArrowLeft",
@@ -68,6 +68,7 @@ const EMPTY_INPUT = Object.freeze(/** @type {GameInput} */ ({
   editorCycleNext: false,
   editorCyclePrev: false,
   editorCycleColor: false,
+  editorCycleAltColor: false,
   editorCursorUp: false,
   editorCursorDown: false,
   editorCursorLeft: false,
@@ -117,7 +118,7 @@ export function getInputs(
   }
 
   const p2 = editorMode
-    ? EMPTY_INPUT
+    ? getConnectedGamepadInput(gamepads, 1, editorMode)
     : mergeInputs(
         getPlayerTwoKeyboardInput(keyboard),
         getConnectedGamepadInput(gamepads, 1, editorMode),
@@ -241,6 +242,7 @@ function getPlayerOneKeyboardInput(keyboard, editorMode) {
       editorCycleNext: isKeyPressed(keyboard, EDITOR_KEYS.cycleNext),
       editorCyclePrev: isKeyPressed(keyboard, EDITOR_KEYS.cyclePrev),
       editorCycleColor: isKeyPressed(keyboard, EDITOR_KEYS.cycleColor),
+      editorCycleAltColor: isKeyPressed(keyboard, EDITOR_KEYS.cycleAltColor),
       editorCursorUp: isKeyPressed(keyboard, EDITOR_KEYS.cursorUp),
       editorCursorDown: isKeyPressed(keyboard, EDITOR_KEYS.cursorDown),
       editorCursorLeft: isKeyPressed(keyboard, EDITOR_KEYS.cursorLeft),
@@ -266,6 +268,7 @@ function getPlayerOneKeyboardInput(keyboard, editorMode) {
     editorCycleNext: false,
     editorCyclePrev: false,
     editorCycleColor: false,
+    editorCycleAltColor: false,
     editorCursorUp: false,
     editorCursorDown: false,
     editorCursorLeft: false,
@@ -298,6 +301,7 @@ function getPlayerTwoKeyboardInput(keyboard) {
     editorCycleNext: false,
     editorCyclePrev: false,
     editorCycleColor: false,
+    editorCycleAltColor: false,
     editorCursorUp: false,
     editorCursorDown: false,
     editorCursorLeft: false,
@@ -327,7 +331,6 @@ function getEditorGamepadInput(gamepad) {
   const viewButton = gamepad.buttons[8]
   const menuButton = gamepad.buttons[9]
   const editorCycleVariant =
-    isPressed(gamepad.buttons[3]) ||
     isPressed(gamepad.buttons[2]) ||
     (isPlayStationStyleGamepad(gamepad) && isPressed(gamepad.buttons[0]))
   return {
@@ -344,10 +347,11 @@ function getEditorGamepadInput(gamepad) {
     editorPlace: lt > TRIGGER_PRESS,
     editorRemove: rt > TRIGGER_PRESS,
     editorUndo: false,
-    editorLevelNext: isPressed(gamepad.buttons[0]),
-    editorLevelPrev: isPressed(gamepad.buttons[1]),
+    editorLevelNext: false,
+    editorLevelPrev: false,
     editorCycleNext: isPressed(gamepad.buttons[5]),
     editorCyclePrev: isPressed(gamepad.buttons[4]),
+    editorCycleAltColor: isPressed(gamepad.buttons[3]),
     editorCursorUp: isPressed(gamepad.buttons[12]),
     editorCursorDown: isPressed(gamepad.buttons[13]),
     editorCursorLeft: isPressed(gamepad.buttons[14]),
@@ -384,10 +388,11 @@ function getGameplayGamepadInput(gamepad) {
     editorPlace: lt > TRIGGER_PRESS,
     editorRemove: rt > TRIGGER_PRESS,
     editorUndo: false,
-    editorLevelNext: isPressed(gamepad.buttons[0]),
-    editorLevelPrev: isPressed(gamepad.buttons[1]),
+    editorLevelNext: false,
+    editorLevelPrev: false,
     editorCycleNext: isPressed(gamepad.buttons[5]),
     editorCyclePrev: isPressed(gamepad.buttons[4]),
+    editorCycleAltColor: isPressed(gamepad.buttons[3]),
     editorCursorUp: isPressed(gamepad.buttons[12]),
     editorCursorDown: isPressed(gamepad.buttons[13]),
     editorCursorLeft: isPressed(gamepad.buttons[14]),
@@ -437,6 +442,8 @@ export function mergeInputs(primary, secondary) {
     editorCycleNext: primary.editorCycleNext || secondary.editorCycleNext,
     editorCyclePrev: primary.editorCyclePrev || secondary.editorCyclePrev,
     editorCycleColor: primary.editorCycleColor || secondary.editorCycleColor,
+    editorCycleAltColor:
+      primary.editorCycleAltColor || secondary.editorCycleAltColor,
     editorCursorUp: primary.editorCursorUp || secondary.editorCursorUp,
     editorCursorDown: primary.editorCursorDown || secondary.editorCursorDown,
     editorCursorLeft: primary.editorCursorLeft || secondary.editorCursorLeft,

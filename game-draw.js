@@ -8,10 +8,7 @@ import {
 } from "./editor-decor-variants.js"
 import { EDITOR_HAZARD_VARIANTS } from "./editor-hazard-variants.js"
 import { EDITOR_PLACEABLES } from "./editor-placeables.js"
-import {
-  EDITOR_COLORS,
-  getEditorFocusWorld,
-} from "./editor-init.js"
+import { EDITOR_COLORS } from "./editor-init.js"
 import { INTERACTIVE_BLOCK_KINDS } from "./game-entities.js"
 import { TILE_SIZE } from "./game-state.js"
 import { FLUID_LAVA, getFluidAtTile, isFluidChar } from "./terrain-fluid.js"
@@ -346,6 +343,7 @@ export function draw(model, view) {
   clear(view.ctx.tiles)
   clear(view.ctx.objects)
 
+  updateViewScale(model, view, width, height)
   const worldWidth = model.world.width * view.scale
   const worldHeight = model.world.height * view.scale
   updateCamera(model, view, width, height)
@@ -377,6 +375,34 @@ export function draw(model, view) {
   if (model.editorMode) {
     drawEditorOverlay(model, view, width, height, offsetX, offsetY)
   }
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ * @param {import('./game-state.js').GameView} view
+ * @param {number} width
+ * @param {number} height
+ */
+function updateViewScale(model, view, width, height) {
+  const points = getCameraFocusPoints(model)
+  if (!points.length) return
+
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const p of points) {
+    minX = Math.min(minX, p.x)
+    minY = Math.min(minY, p.y)
+    maxX = Math.max(maxX, p.x)
+    maxY = Math.max(maxY, p.y)
+  }
+
+  const pad = TILE_SIZE * 2
+  const spanW = Math.max(TILE_SIZE * 4, maxX - minX + pad * 2)
+  const spanH = Math.max(TILE_SIZE * 4, maxY - minY + pad * 2)
+  const targetScale = Math.min(1, width / spanW, height / spanH)
+  view.scale = lerp(view.scale, targetScale, 0.12)
 }
 
 /**
@@ -464,30 +490,53 @@ function getCameraOffsets(model, view, width, height, worldWidth, worldHeight) {
  * @param {import('./game-state.js').GameModel} model
  */
 function getPlayerFocus(model) {
-  if (model.editorMode) {
-    return getEditorFocusWorld(model)
-  }
-
-  if (model.players.length === 0) {
+  const points = getCameraFocusPoints(model)
+  if (points.length === 0) {
     return {
       x: model.world.width / 2,
       y: model.world.height / 2,
     }
   }
-
   let totalX = 0
   let totalY = 0
-  for (const player of model.players) {
-    totalX +=
-      lerp(player.oldPos.x, player.pos.x, model.frameTime) + player.size.x / 2
-    totalY +=
-      lerp(player.oldPos.y, player.pos.y, model.frameTime) + player.size.y / 2
+  for (const point of points) {
+    totalX += point.x
+    totalY += point.y
+  }
+  return { x: totalX / points.length, y: totalY / points.length }
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ * @returns {{ x: number, y: number }[]}
+ */
+function getCameraFocusPoints(model) {
+  if (model.editorMode) {
+    const points = []
+    for (const player of model.players) {
+      if (!player) continue
+      points.push({
+        x: player.pos.x + player.size.x / 2,
+        y: player.pos.y + player.size.y / 2,
+      })
+    }
+    const count = Math.min(model.players.length, 2)
+    for (let i = 0; i < count; i++) {
+      const tx = model.editorTileX[i]
+      const ty = model.editorTileY[i]
+      if (tx === undefined || ty === undefined) continue
+      points.push({
+        x: (tx + 0.5) * TILE_SIZE,
+        y: (ty + 0.5) * TILE_SIZE,
+      })
+    }
+    return points
   }
 
-  return {
-    x: totalX / model.players.length,
-    y: totalY / model.players.length,
-  }
+  return model.players.map((player) => ({
+    x: player.pos.x + player.size.x / 2,
+    y: player.pos.y + player.size.y / 2,
+  }))
 }
 
 /**
@@ -842,9 +891,10 @@ function drawObjects(model, view, offsetX, offsetY) {
       if (object.kind === "saw") {
         const cx = drawX + tileSize / 2
         const cy = drawY + tileSize / 2
+        const spinDir = Number(object.spinDir ?? 1) >= 0 ? 1 : -1
         ctx.save()
         ctx.translate(cx, cy)
-        ctx.rotate(model.elapsed * 3)
+        ctx.rotate(model.elapsed * 3 * spinDir)
         if (image.complete) {
           ctx.drawImage(
             image,
@@ -858,12 +908,14 @@ function drawObjects(model, view, offsetX, offsetY) {
         continue
       }
       if (image.complete) {
-        if (object.kind === "spikes" && object.upsideDown) {
+        if (object.kind === "spikes") {
+          const orientation = Number(object.orientation ?? (object.upsideDown ? 1 : 0))
+          const rotation = [0, Math.PI, -Math.PI / 2, Math.PI / 2][orientation] ?? 0
           const cx = drawX + tileSize / 2
           const cy = drawY + tileSize / 2
           ctx.save()
           ctx.translate(cx, cy)
-          ctx.scale(1, -1)
+          ctx.rotate(rotation)
           ctx.drawImage(image, -tileSize / 2, -tileSize / 2, tileSpan, tileSpan)
           ctx.restore()
         } else {
@@ -1024,7 +1076,7 @@ function drawPlayerLabel(player, view, offsetX, offsetY, playerX, playerY) {
  */
 function drawHud(model, view, width, height) {
   const ctx = view.ctx.objects
-  const s = view.scale
+  const s = 1
   const panelWidth = Math.min(
     220 * s,
     width / Math.max(1, model.players.length),
@@ -1269,6 +1321,14 @@ function drawEditorSelectionPreview(ctx, model, thing, left, top, size, s, pi) {
         ctx.save()
         ctx.translate(cx, top + pad + inner / 2)
         ctx.rotate(model.elapsed * 3)
+        blit(img, -w / 2, -w / 2, w, w)
+        ctx.restore()
+      } else if (v?.kind === "spikes") {
+        const orientation = model.editorSpikeOrientationIndex[bi] ?? 0
+        const rotation = [0, Math.PI, -Math.PI / 2, Math.PI / 2][orientation] ?? 0
+        ctx.save()
+        ctx.translate(cx, top + pad + inner / 2)
+        ctx.rotate(rotation)
         blit(img, -w / 2, -w / 2, w, w)
         ctx.restore()
       } else {
@@ -1529,8 +1589,8 @@ function wrapEditorText(ctx, text, centerX, startY, maxWidth, lineHeight) {
  */
 function drawEditorOverlay(model, view, width, _height, offsetX, offsetY) {
   const ctx = view.ctx.objects
-  const s = view.scale
-  const ts = TILE_SIZE * s
+  const s = 1
+  const ts = TILE_SIZE * view.scale
   const n = Math.min(model.players.length, 2)
   const gap = 8 * s
   const margin = 8 * s
@@ -1644,9 +1704,17 @@ function drawEditorOverlay(model, view, width, _height, offsetX, offsetY) {
         const v = EDITOR_BLOCK_VARIANTS[model.editorBlockVariantIndex[slot]]
         extra = v?.kind ?? "?"
       } else if (thingRow.id === "hazard") {
-        extra =
+        const v =
           EDITOR_HAZARD_VARIANTS[model.editorHazardVariantIndex[slot] ?? 0]
-            ?.label ?? "?"
+        extra = v?.label ?? "?"
+        if (v?.kind === "saw") {
+          extra += model.editorSawSpinDir[slot] === -1 ? " ccw" : " cw"
+        } else if (v?.kind === "spikes") {
+          extra +=
+            ["bottom", "top", "left", "right"][
+              model.editorSpikeOrientationIndex[slot] ?? 0
+            ] ?? ""
+        }
       } else if (thingRow.id === "brick") {
         extra =
           EDITOR_BRICK_VARIANTS[model.editorBrickVariantIndex[slot] ?? 0]
@@ -1686,7 +1754,7 @@ function drawEditorOverlay(model, view, width, _height, offsetX, offsetY) {
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
   ctx.fillText(
-    "B editor · Q/X (Y on pad) cycle variants · F place · V/Delete remove · P1 arrows · P2 WASD",
+    "B editor · X cycle variants · Y alt placement · F place · V/Delete remove · P1 arrows · P2 WASD",
     width / 2,
     hintY,
   )

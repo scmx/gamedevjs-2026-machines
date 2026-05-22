@@ -23,6 +23,7 @@ type GameInput = {
   editorCycleNext: boolean
   editorCyclePrev: boolean
   editorCycleColor: boolean
+  editorCycleAltColor: boolean
   editorCursorUp: boolean
   editorCursorDown: boolean
   editorCursorLeft: boolean
@@ -62,11 +63,13 @@ type GameLevelObject = {
   vx?: number
   vy?: number
   state?: string
+  spinDir?: number
   timer?: number
   pressed?: boolean
   activated?: boolean
   _prevStepped?: boolean
   upsideDown?: boolean
+  orientation?: number
   /** saw: center tile coords */
   anchorX?: number
   anchorY?: number

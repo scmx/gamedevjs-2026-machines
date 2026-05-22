@@ -128,8 +128,16 @@ export class GameModel {
      * @type {boolean}
      */
     this.editorMode = false
+    /**
+     * Player count mode: null = auto, 1 = locked single-player, 2 = locked dual-player.
+     * Auto renders like 1-player until a second gamepad is present.
+     * @type {1 | 2 | null}
+     */
+    this.playerMode = null
     /** @type {boolean} */
     this.menuOpen = false
+    /** @type {"resume" | "editor" | "level" | "player" | "music" | "sfx" | "restart"} */
+    this.menuSelection = "resume"
     /** @type {0 | 1 | 2 | 3} */
     this.musicVolume = 3
     /** @type {0 | 1 | 2 | 3} */
@@ -138,6 +146,10 @@ export class GameModel {
     this._editorPrevToggleAny = false
     /** Edge-detect helper for combined menu toggle. @type {boolean} */
     this._menuPrevToggleAny = false
+    /** Edge-detect helpers for menu navigation. */
+    this._menuPrevVerticalAny = false
+    /** @type {boolean} */
+    this._menuPrevHorizontalAny = false
     /** @type {[number, number]} */
     this.editorTileX = [4, 4]
     /** @type {[number, number]} */
@@ -159,11 +171,13 @@ export class GameModel {
     /** @type {[number, number]} */
     this.editorHazardVariantIndex = [0, 0]
     /** @type {[number, number]} */
+    this.editorSawSpinDir = [1, 1]
+    /** @type {[number, number]} */
     this.editorBrickVariantIndex = [0, 0]
     /** @type {[number, number]} */
     this.editorCoinVariantIndex = [0, 0]
-    /** @type {[boolean, boolean]} */
-    this.editorSpikeUpsideDown = [false, false]
+    /** @type {[number, number]} */
+    this.editorSpikeOrientationIndex = [0, 0]
     /** @type {[Record<string, number>, Record<string, number>]} */
     this.editorColorsById = [{}, {}]
     /** @type {number} */
@@ -184,6 +198,8 @@ export class GameModel {
     this._editorPrevCyclePrev = [false, false]
     /** @type {[boolean, boolean]} */
     this._editorPrevColor = [false, false]
+    /** @type {[boolean, boolean]} */
+    this._editorPrevAltColor = [false, false]
     /** @type {[boolean, boolean]} */
     this._editorPrevCursorUp = [false, false]
     /** @type {[boolean, boolean]} */

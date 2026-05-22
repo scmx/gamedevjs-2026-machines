@@ -1,7 +1,6 @@
 import {
   getConnectedGamepads,
   getInputs,
-  hasPlayerTwoKeyboardInput,
 } from "./game-controller.js"
 import { draw } from "./game-draw.js"
 import { resumeZzfxAudioIfGamepadActive } from "./game-sounds.js"
@@ -35,11 +34,15 @@ export function startGameLoop(model, view, keyboard, options = {}) {
       while (accumulator >= model.interval) {
         const gamepads = getConnectedGamepads()
         resumeZzfxAudioIfGamepadActive(gamepads)
-        const needsSecondPlayer =
-          gamepads.length > 1 ||
-          hasPlayerTwoKeyboardInput(keyboard) ||
-          model.players.length > 1
-        syncPlayerCount(model, needsSecondPlayer ? 2 : 1)
+        const targetPlayerCount =
+          model.playerMode === 1
+            ? 1
+            : model.playerMode === 2
+              ? 2
+              : gamepads.length > 1
+                ? 2
+                : 1
+        syncPlayerCount(model, targetPlayerCount)
         model.simulationTime += model.interval
         update(
           model,

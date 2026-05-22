@@ -62,8 +62,8 @@ export function update(model, inputs, deltaTime) {
   const p0 = inputs[0] ?? EMPTY_INPUT
   const p1 = inputs[1] ?? EMPTY_INPUT
   updateMainMenuToggle(model, p0, p1)
-
   if (model.menuOpen) {
+    updateMenuNavigation(model, p0, p1)
     for (const player of model.players) {
       player.velocity.x = 0
       player.velocity.y = 0
@@ -74,10 +74,7 @@ export function update(model, inputs, deltaTime) {
   updateEditors(model, [p0, p1])
 
   if (model.editorMode) {
-    for (const player of model.players) {
-      player.velocity.x = 0
-      player.velocity.y = 0
-    }
+    updateEditorFreeMovement(model, [p0, p1], deltaTime)
     return
   }
 
@@ -118,6 +115,61 @@ export function update(model, inputs, deltaTime) {
 
 /**
  * @param {import('./game-state.js').GameModel} model
+ * @param {GameInput[]} inputs
+ * @param {number} dt
+ */
+function updateEditorFreeMovement(model, inputs, dt) {
+  for (const player of model.players) {
+    const input = inputs[player.index] ?? EMPTY_INPUT
+    const axisX = Number(input.right) - Number(input.left)
+    const axisY = Number(input.down) - Number(input.jump)
+    const speed = player.speed * 1.1
+    player.oldPos.x = player.pos.x
+    player.oldPos.y = player.pos.y
+    player.velocity.x = axisX * speed
+    player.velocity.y = axisY * speed
+    player.pos.x += player.velocity.x * dt
+    player.pos.y += player.velocity.y * dt
+    player.pos.x = clamp(player.pos.x, 0, model.world.width - player.size.x)
+    player.pos.y = clamp(player.pos.y, 0, model.world.height - player.size.y)
+  }
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
+ * @param {GameInput} p0
+ * @param {GameInput} p1
+ */
+function updateMenuNavigation(model, p0, p1) {
+  const up = Boolean(p0.jump || p1.jump)
+  const down = Boolean(p0.down || p1.down)
+  const left = Boolean(p0.left || p1.left)
+  const right = Boolean(p0.right || p1.right)
+  const anyVertical = up || down
+  const anyHorizontal = left || right
+  const prevVertical = model._menuPrevVerticalAny ?? false
+  const prevHorizontal = model._menuPrevHorizontalAny ?? false
+  model._menuPrevVerticalAny = anyVertical
+  model._menuPrevHorizontalAny = anyHorizontal
+
+  if (model.menuSelection === "level" && anyHorizontal && !prevHorizontal) {
+    cycleEditorLevel(model, right ? 1 : -1)
+    return
+  }
+
+  if (!anyVertical || prevVertical) return
+
+  const items = model.editorMode
+    ? ["edit", "level", "player", "music", "sfx", "restart"]
+    : ["resume", "editor", "player", "music", "sfx", "restart"]
+  const cur = items.indexOf(model.menuSelection)
+  const next =
+    cur < 0 ? 0 : (cur + (down ? 1 : -1) + items.length) % items.length
+  model.menuSelection = /** @type {any} */ (items[next] ?? "resume")
+}
+
+/**
+ * @param {import('./game-state.js').GameModel} model
  * @param {GameInput} p0
  * @param {GameInput} p1
  */
@@ -132,6 +184,7 @@ function updateMainMenuToggle(model, p0, p1) {
   if (model.menuOpen) {
     model.editorMode = false
     model._editorPrevToggleAny = false
+    model.menuSelection = "resume"
   }
 }
 
@@ -879,9 +932,10 @@ export function regenerateLevelAtSeed(model, seed) {
   model.editorRopeVariantIndex = [0, 0]
   model.editorRockVariantIndex = [0, 0]
   model.editorHazardVariantIndex = [0, 0]
-  model.editorSpikeUpsideDown = [false, false]
+  model.editorSawSpinDir = [1, 1]
   model.editorBrickVariantIndex = [0, 0]
   model.editorCoinVariantIndex = [0, 0]
+  model.editorSpikeOrientationIndex = [0, 0]
   model.editorColorsById = [{}, {}]
   model._editorPrevPlace = [false, false]
   model._editorPrevRemove = [false, false]
@@ -891,6 +945,7 @@ export function regenerateLevelAtSeed(model, seed) {
   model._editorPrevCycleNext = [false, false]
   model._editorPrevCyclePrev = [false, false]
   model._editorPrevColor = [false, false]
+  model._editorPrevAltColor = [false, false]
   model._editorPrevCursorUp = [false, false]
   model._editorPrevCursorDown = [false, false]
   model._editorPrevCursorLeft = [false, false]
@@ -1143,6 +1198,7 @@ function resolveSolidOverlap(player, object) {
  * @param {import('./game-state.js').GameModel} model
  */
 function constrainPlayerSpacing(model) {
+  if (model.editorMode) return
   if (model.players.length < 2) return
 
   const leftPlayer = model.players[0]
